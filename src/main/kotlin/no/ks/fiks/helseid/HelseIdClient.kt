@@ -51,7 +51,7 @@ class HelseIdClient(
     fun getAccessToken(): TokenResponse =
         httpClient
             .execute(buildPostRequest()) {
-                if (it.code != 200) {
+                if (it.code >= 300) {
                     throw HttpException(it.code, it.readBodyAsString())
                 }
                 mapper.readValue<InternalTokenResponse>(it.readBodyAsString())
