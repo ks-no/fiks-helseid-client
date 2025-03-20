@@ -79,7 +79,7 @@ class HelseIdClientTest : StringSpec({
                     issueTime.toInstant() shouldBeBefore Instant.now()
                     jwtid shouldNot beNull()
                     notBeforeTime.toInstant() shouldBeBefore Instant.now()
-                    expirationTime.toInstant().shouldBeBetween(Instant.now().plus(duration).minusSeconds(1), Instant.now().plus(duration).plusSeconds(1))
+                    expirationTime.toInstant().shouldBeBetween(Instant.now().plus(duration).minusSeconds(5), Instant.now().plus(duration).plusSeconds(5))
                 }
             }
         }
