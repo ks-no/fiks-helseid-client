@@ -4,16 +4,17 @@ import com.nimbusds.jose.JOSEObjectType
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.crypto.RSASSAVerifier
 import com.nimbusds.jose.jwk.JWK
-import com.nimbusds.jose.jwk.RSAKey
 import com.nimbusds.jwt.SignedJWT
 import io.kotest.assertions.asClue
-import io.kotest.core.spec.style.StringSpec
+import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSingleElement
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.date.shouldBeBefore
 import io.kotest.matchers.date.shouldBeBetween
+import io.kotest.matchers.maps.shouldHaveSize
 import io.kotest.matchers.nulls.beNull
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNot
 import io.mockk.every
@@ -30,56 +31,194 @@ import java.time.Duration
 import java.time.Instant
 import java.util.*
 
-class HelseIdClientTest : StringSpec({
+class HelseIdClientTest : FreeSpec({
 
-    "Check that the access token request has the expected values" {
-        val clientId = UUID.randomUUID().toString()
-        val keyId = UUID.randomUUID().toString()
-        val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
-        val duration = Duration.ofSeconds(25)
+    "Bearer token" - {
+        "Check that the access token request has the expected values" {
+            val clientId = UUID.randomUUID().toString()
+            val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
+            val duration = Duration.ofSeconds(25)
 
-        val slot = slot<ClassicHttpRequest>()
-        val httpClient = mockk<HttpClient> {
-            every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+            val slot = slot<ClassicHttpRequest>()
+            val httpClient = mockk<HttpClient> {
+                every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+            }
+
+            HelseIdClient(
+                configuration = Configuration(
+                    clientId = clientId,
+                    jwk = readJwkJson(),
+                    environment = environment,
+                    jwtRequestExpirationTime = duration,
+                ),
+                httpClient = httpClient,
+            ).getAccessToken()
+
+            with(slot.captured) {
+                uri shouldBe URI.create(environment.url)
+                getFirstHeader("DPoP") should beNull()
+
+                entity.contentType shouldBe "application/x-www-form-urlencoded; charset=UTF-8"
+
+                WWWFormCodec.parse(entity.content.readAllBytes().decodeToString(), StandardCharsets.UTF_8).asClue { params ->
+                    params shouldHaveSize 4
+                    params shouldContain BasicNameValuePair("client_id", clientId)
+                    params shouldContain BasicNameValuePair("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+                    params shouldContain BasicNameValuePair("grant_type", "client_credentials")
+                    params shouldHaveSingleElement { it.name == "client_assertion" }
+
+                    val jwt = SignedJWT.parse(params.single { it.name == "client_assertion" }.value)
+                    jwt.header.algorithm shouldBe JWSAlgorithm.PS512
+                    jwt.header.keyID shouldBe "LJjagdyyRG-oj3bYLEf3kOt7im5ChDHe05DdiHUtqAA"
+                    jwt.header.type shouldBe JOSEObjectType("client-authentication+jwt")
+
+                    RSASSAVerifier(readJwk().toRSAKey()).verify(jwt.header, jwt.signingInput, jwt.signature) shouldBe true
+
+                    jwt.jwtClaimsSet.claims shouldHaveSize 7
+                    with(jwt.jwtClaimsSet) {
+                        subject shouldBe clientId
+                        issuer shouldBe clientId
+                        audience shouldBe listOf(environment.audience)
+                        issueTime.toInstant() shouldBeBefore Instant.now()
+                        jwtid shouldNot beNull()
+                        notBeforeTime.toInstant() shouldBeBefore Instant.now()
+                        expirationTime.toInstant().shouldBeBetween(Instant.now().plus(duration).minusSeconds(5), Instant.now().plus(duration).plusSeconds(5))
+                    }
+                }
+            }
         }
+    }
 
-        HelseIdClient(
-            configuration = Configuration(
+    "DPoP token" - {
+        "Check that the access token request and proof has the expected values" {
+            val clientId = UUID.randomUUID().toString()
+            val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
+            val duration = Duration.ofSeconds(25)
+
+            val nonce = UUID.randomUUID().toString()
+
+            val captured = mutableListOf<ClassicHttpRequest>()
+            val httpClient = mockk<HttpClient> {
+                every { execute(capture(captured), any<HttpClientResponseHandler<Any>>()) } returns nonce andThen mockk<TokenResponse>()
+            }
+
+            val configuration = Configuration(
                 clientId = clientId,
-                privateKey = readPrivateKey(),
-                keyId = keyId,
+                jwk = readJwkJson(),
                 environment = environment,
                 jwtRequestExpirationTime = duration,
-            ),
-            httpClient = httpClient,
-        ).getAccessToken()
+            )
+            HelseIdClient(
+                configuration = configuration,
+                httpClient = httpClient,
+            ).getDpopAccessToken()
 
-        with(slot.captured) {
-            uri shouldBe URI.create(environment.url)
-            entity.contentType shouldBe "application/x-www-form-urlencoded; charset=UTF-8"
+            captured shouldHaveSize 2
+            with(captured.first()) {
+                uri shouldBe URI.create(environment.url)
 
-            WWWFormCodec.parse(entity.content.readAllBytes().decodeToString(), StandardCharsets.UTF_8).asClue { params ->
-                params shouldHaveSize 4
-                params shouldContain BasicNameValuePair("client_id", clientId)
-                params shouldContain BasicNameValuePair("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-                params shouldContain BasicNameValuePair("grant_type", "client_credentials")
-                params shouldHaveSingleElement { it.name == "client_assertion" }
+                val dpopHeaders = headerIterator("DPoP").asSequence().toList()
+                dpopHeaders shouldHaveSize 1
+                dpopHeaders.first().asClue {
+                    SignedJWT.parse(it.value).asClue { jwt ->
+                        jwt.header.algorithm shouldBe JWSAlgorithm.PS512
+                        jwt.header.type shouldBe JOSEObjectType("dpop+jwt")
+                        jwt.header.jwk shouldBe readJwk().toPublicJWK()
 
-                val jwt = SignedJWT.parse(params.single { it.name == "client_assertion" }.value)
-                jwt.header.algorithm shouldBe JWSAlgorithm.PS512
-                jwt.header.keyID shouldBe keyId
-                jwt.header.type shouldBe JOSEObjectType("client-authentication+jwt")
+                        RSASSAVerifier(readJwk().toRSAKey()).verify(jwt.header, jwt.signingInput, jwt.signature) shouldBe true
 
-                RSASSAVerifier(readPublicKey()).verify(jwt.header, jwt.signingInput, jwt.signature) shouldBe true
+                        jwt.jwtClaimsSet.claims shouldHaveSize 4
+                        with(jwt.jwtClaimsSet) {
+                            issueTime.toInstant() shouldBeBefore Instant.now()
+                            jwtid shouldNot beNull()
+                            getStringClaim("htm") shouldBe "POST"
+                            getStringClaim("htu") shouldBe configuration.environment.url
+                            getStringClaim("nonce") should beNull()
+                            getStringClaim("ath") should beNull()
+                        }
+                    }
+                }
 
-                with(jwt.jwtClaimsSet) {
-                    subject shouldBe clientId
-                    issuer shouldBe clientId
-                    audience shouldBe listOf(environment.audience)
-                    issueTime.toInstant() shouldBeBefore Instant.now()
-                    jwtid shouldNot beNull()
-                    notBeforeTime.toInstant() shouldBeBefore Instant.now()
-                    expirationTime.toInstant().shouldBeBetween(Instant.now().plus(duration).minusSeconds(5), Instant.now().plus(duration).plusSeconds(5))
+                entity.contentType shouldBe "application/x-www-form-urlencoded; charset=UTF-8"
+
+                WWWFormCodec.parse(entity.content.readAllBytes().decodeToString(), StandardCharsets.UTF_8).asClue { params ->
+                    params shouldHaveSize 4
+                    params shouldContain BasicNameValuePair("client_id", clientId)
+                    params shouldContain BasicNameValuePair("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+                    params shouldContain BasicNameValuePair("grant_type", "client_credentials")
+                    params shouldHaveSingleElement { it.name == "client_assertion" }
+
+                    val jwt = SignedJWT.parse(params.single { it.name == "client_assertion" }.value)
+                    jwt.header.algorithm shouldBe JWSAlgorithm.PS512
+                    jwt.header.keyID shouldBe "LJjagdyyRG-oj3bYLEf3kOt7im5ChDHe05DdiHUtqAA"
+                    jwt.header.type shouldBe JOSEObjectType("client-authentication+jwt")
+
+                    RSASSAVerifier(readJwk().toRSAKey()).verify(jwt.header, jwt.signingInput, jwt.signature) shouldBe true
+
+                    jwt.jwtClaimsSet.claims shouldHaveSize 7
+                    with(jwt.jwtClaimsSet) {
+                        subject shouldBe clientId
+                        issuer shouldBe clientId
+                        audience shouldBe listOf(environment.audience)
+                        issueTime.toInstant() shouldBeBefore Instant.now()
+                        jwtid shouldNot beNull()
+                        notBeforeTime.toInstant() shouldBeBefore Instant.now()
+                        expirationTime.toInstant().shouldBeBetween(Instant.now().plus(duration).minusSeconds(5), Instant.now().plus(duration).plusSeconds(5))
+                    }
+                }
+            }
+
+            with(captured[1]) {
+                uri shouldBe URI.create(environment.url)
+
+                val dpopHeaders = headerIterator("DPoP").asSequence().toList()
+                dpopHeaders shouldHaveSize 1
+                dpopHeaders.first().asClue {
+                    SignedJWT.parse(it.value).asClue { jwt ->
+                        jwt.header.algorithm shouldBe JWSAlgorithm.PS512
+                        jwt.header.type shouldBe JOSEObjectType("dpop+jwt")
+                        jwt.header.jwk shouldBe readJwk().toPublicJWK()
+
+                        RSASSAVerifier(readJwk().toRSAKey()).verify(jwt.header, jwt.signingInput, jwt.signature) shouldBe true
+
+                        jwt.jwtClaimsSet.claims shouldHaveSize 5
+                        with(jwt.jwtClaimsSet) {
+                            issueTime.toInstant() shouldBeBefore Instant.now()
+                            jwtid shouldNot beNull()
+                            getStringClaim("htm") shouldBe "POST"
+                            getStringClaim("htu") shouldBe configuration.environment.url
+                            getStringClaim("nonce") shouldBe nonce
+                            getStringClaim("ath") should beNull()
+                        }
+                    }
+                }
+
+                entity.contentType shouldBe "application/x-www-form-urlencoded; charset=UTF-8"
+
+                WWWFormCodec.parse(entity.content.readAllBytes().decodeToString(), StandardCharsets.UTF_8).asClue { params ->
+                    params shouldHaveSize 4
+                    params shouldContain BasicNameValuePair("client_id", clientId)
+                    params shouldContain BasicNameValuePair("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+                    params shouldContain BasicNameValuePair("grant_type", "client_credentials")
+                    params shouldHaveSingleElement { it.name == "client_assertion" }
+
+                    val jwt = SignedJWT.parse(params.single { it.name == "client_assertion" }.value)
+                    jwt.header.algorithm shouldBe JWSAlgorithm.PS512
+                    jwt.header.keyID shouldBe "LJjagdyyRG-oj3bYLEf3kOt7im5ChDHe05DdiHUtqAA"
+                    jwt.header.type shouldBe JOSEObjectType("client-authentication+jwt")
+
+                    RSASSAVerifier(readJwk().toRSAKey()).verify(jwt.header, jwt.signingInput, jwt.signature) shouldBe true
+
+                    jwt.jwtClaimsSet.claims shouldHaveSize 7
+                    with(jwt.jwtClaimsSet) {
+                        subject shouldBe clientId
+                        issuer shouldBe clientId
+                        audience shouldBe listOf(environment.audience)
+                        issueTime.toInstant() shouldBeBefore Instant.now()
+                        jwtid shouldNot beNull()
+                        notBeforeTime.toInstant() shouldBeBefore Instant.now()
+                        expirationTime.toInstant().shouldBeBetween(Instant.now().plus(duration).minusSeconds(5), Instant.now().plus(duration).plusSeconds(5))
+                    }
                 }
             }
         }
@@ -87,10 +226,6 @@ class HelseIdClientTest : StringSpec({
 
 })
 
-private fun readPrivateKey() = readRsaKey().toPrivateKey()
+private fun readJwk() = JWK.parse(readJwkJson())
 
-private fun readPublicKey() = readRsaKey().toRSAPublicKey()
-
-private fun readRsaKey() = JWK.parse(readJwk()) as RSAKey
-
-private fun readJwk() = HelseIdClientTest::class.java.classLoader.getResourceAsStream("jwk.json")!!.readAllBytes().decodeToString()
+private fun readJwkJson() = HelseIdClientTest::class.java.classLoader.getResourceAsStream("jwk.json")!!.readAllBytes().decodeToString()
