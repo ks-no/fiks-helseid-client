@@ -1,10 +1,5 @@
 package no.ks.fiks.helseid.http
 
-private object Header {
-    const val AUTHORIZATION = "Authorization"
-    const val DPOP = "DPoP"
-}
-
 private object Scheme {
     const val BEARER = "Bearer"
     const val DPOP = "DPoP"
@@ -16,7 +11,7 @@ object HeaderHelper {
         accessToken: String,
         setHeaderFunction: (headerName: String, headerValue: String) -> Any,
     ) {
-        setHeaderFunction.invoke(Header.AUTHORIZATION, buildAuthorizationHeaderValue(accessToken))
+        setHeaderFunction.invoke(Headers.AUTHORIZATION, buildAuthorizationHeaderValue(accessToken))
     }
 
     private fun buildAuthorizationHeaderValue(accessToken: String) = "${Scheme.BEARER} $accessToken"
@@ -26,8 +21,8 @@ object HeaderHelper {
         dpopProof: String,
         setHeaderFunction: (headerName: String, headerValue: String) -> Any,
     ) {
-        setHeaderFunction.invoke(Header.AUTHORIZATION, buildDpopAuthorizationHeaderValue(accessToken))
-        setHeaderFunction.invoke(Header.DPOP, dpopProof)
+        setHeaderFunction.invoke(Headers.AUTHORIZATION, buildDpopAuthorizationHeaderValue(accessToken))
+        setHeaderFunction.invoke(Headers.DPOP, dpopProof)
     }
 
     private fun buildDpopAuthorizationHeaderValue(accessToken: String) = "${Scheme.DPOP} $accessToken"

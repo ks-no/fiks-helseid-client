@@ -15,6 +15,8 @@ import mu.KotlinLogging
 import no.ks.fiks.helseid.dpop.Endpoint
 import no.ks.fiks.helseid.dpop.HttpMethod
 import no.ks.fiks.helseid.dpop.ProofBuilder
+import no.ks.fiks.helseid.http.ErrorCodes
+import no.ks.fiks.helseid.http.Headers
 import no.ks.fiks.helseid.http.HttpException
 import org.apache.hc.client5.http.classic.HttpClient
 import org.apache.hc.client5.http.classic.methods.HttpPost
@@ -80,11 +82,11 @@ class HelseIdClient(
 
                 val body = it.readBodyAsString()
                 val error = mapper.readValue<InternalErrorResponse>(body)
-                if (error.code != "use_dpop_nonce") throw HttpException(it.code, body)
-                it.getFirstHeader("DPoP-Nonce")?.value
+                if (error.code != ErrorCodes.USE_DPOP_NONCE) throw HttpException(it.code, body)
+                it.getFirstHeader(Headers.DPOP_NONCE)?.value
             }
 
-        if (nonce == null) throw RuntimeException("Expected DPoP-Nonce header to be set")
+        if (nonce == null) throw RuntimeException("Expected ${Headers.DPOP_NONCE} header to be set")
 
         return httpClient
             .execute(buildDpopPostRequest(nonce)) {
@@ -99,7 +101,7 @@ class HelseIdClient(
     private fun buildDpopPostRequest(nonce: String? = null) = HttpPost(configuration.environment.url).apply {
         val serializedJwtClaim = buildSignedJwt()
         entity = buildUrlEncodedFormEntity(serializedJwtClaim.serialize())
-        addHeader("DPoP", dpopProofBuilder.buildProof(Endpoint(HttpMethod.POST, configuration.environment.url), nonce))
+        addHeader(Headers.DPOP, dpopProofBuilder.buildProof(Endpoint(HttpMethod.POST, configuration.environment.url), nonce))
     }
 
     private fun buildUrlEncodedFormEntity(serializedJwtClaim: String) =
