@@ -13,7 +13,6 @@ import no.ks.fiks.helseid.Environment
 import no.ks.fiks.helseid.TokenResponse
 import org.apache.hc.client5.http.classic.HttpClient
 import org.apache.hc.core5.http.io.HttpClientResponseHandler
-import java.security.PrivateKey
 import java.time.Duration
 import java.util.*
 import kotlin.random.Random.Default.nextLong
@@ -28,49 +27,36 @@ class BuilderTest : FreeSpec({
             } shouldHaveMessage "clientId is required"
         }
 
-        "privateKey should be required" {
+        "jwk should be required" {
             shouldThrow<IllegalArgumentException> {
                 ConfigurationBuilder()
                     .clientId(UUID.randomUUID().toString())
                     .build()
-            } shouldHaveMessage "privateKey is required"
-        }
-
-        "keyId should be required" {
-            shouldThrow<IllegalArgumentException> {
-                ConfigurationBuilder()
-                    .clientId(UUID.randomUUID().toString())
-                    .privateKey(mockk())
-                    .build()
-            } shouldHaveMessage "keyId is required"
+            } shouldHaveMessage "jwk is required"
         }
 
         "environment should be required" {
             shouldThrow<IllegalArgumentException> {
                 ConfigurationBuilder()
                     .clientId(UUID.randomUUID().toString())
-                    .privateKey(mockk())
-                    .keyId(UUID.randomUUID().toString())
+                    .jwk(UUID.randomUUID().toString())
                     .build()
             } shouldHaveMessage "environment is required"
         }
 
         "Build with minimal config" {
             val clientId = UUID.randomUUID().toString()
-            val privateKey = mockk<PrivateKey>()
-            val keyId = UUID.randomUUID().toString()
+            val jwk = UUID.randomUUID().toString()
             val environment = Environment(UUID.randomUUID().toString(), UUID.randomUUID().toString())
 
             ConfigurationBuilder()
                 .clientId(clientId)
-                .privateKey(privateKey)
-                .keyId(keyId)
+                .jwk(jwk)
                 .environment(environment)
                 .build()
                 .asClue {
                     it.clientId shouldBe clientId
-                    it.privateKey shouldBe privateKey
-                    it.keyId shouldBe keyId
+                    it.jwk shouldBe jwk
                     it.environment shouldBe environment
                     it.jwtRequestExpirationTime shouldBe Duration.ofSeconds(60)
                 }
@@ -78,22 +64,19 @@ class BuilderTest : FreeSpec({
 
         "Build with full config" {
             val clientId = UUID.randomUUID().toString()
-            val privateKey = mockk<PrivateKey>()
-            val keyId = UUID.randomUUID().toString()
+            val jwk = UUID.randomUUID().toString()
             val environment = Environment(UUID.randomUUID().toString(), UUID.randomUUID().toString())
             val expirationTime = Duration.ofSeconds(nextLong(1, 60))
 
             ConfigurationBuilder()
                 .clientId(clientId)
-                .privateKey(privateKey)
-                .keyId(keyId)
+                .jwk(jwk)
                 .environment(environment)
                 .jwtRequestExpirationTime(expirationTime)
                 .build()
                 .asClue {
                     it.clientId shouldBe clientId
-                    it.privateKey shouldBe privateKey
-                    it.keyId shouldBe keyId
+                    it.jwk shouldBe jwk
                     it.environment shouldBe environment
                     it.jwtRequestExpirationTime shouldBe expirationTime
                 }
@@ -109,7 +92,7 @@ class BuilderTest : FreeSpec({
         }
 
         "Build with configuration" {
-            val privateKey = RSAKeyGenerator(2048).generate().toPrivateKey()
+            val jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString()
             val httpClient = mockk<HttpClient> {
                 every { execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
             }
@@ -118,8 +101,7 @@ class BuilderTest : FreeSpec({
                 .configuration(
                     ConfigurationBuilder()
                         .clientId(UUID.randomUUID().toString())
-                        .privateKey(privateKey)
-                        .keyId(UUID.randomUUID().toString())
+                        .jwk(jwk)
                         .environment(Environment(UUID.randomUUID().toString(), UUID.randomUUID().toString()))
                         .build()
                 )

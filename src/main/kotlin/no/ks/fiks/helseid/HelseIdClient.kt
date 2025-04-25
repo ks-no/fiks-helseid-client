@@ -8,9 +8,16 @@ import com.nimbusds.jose.JOSEObjectType
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.JWSHeader
 import com.nimbusds.jose.crypto.RSASSASigner
+import com.nimbusds.jose.jwk.JWK
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
 import mu.KotlinLogging
+import no.ks.fiks.helseid.dpop.Endpoint
+import no.ks.fiks.helseid.dpop.HttpMethod
+import no.ks.fiks.helseid.dpop.ProofBuilder
+import no.ks.fiks.helseid.http.ErrorCodes
+import no.ks.fiks.helseid.http.Headers
+import no.ks.fiks.helseid.http.HttpException
 import org.apache.hc.client5.http.classic.HttpClient
 import org.apache.hc.client5.http.classic.methods.HttpPost
 import org.apache.hc.client5.http.entity.UrlEncodedFormEntity
@@ -42,12 +49,16 @@ class HelseIdClient(
     private val httpClient: HttpClient = HttpClients.createMinimal(),
 ) {
 
-    private val signer = RSASSASigner(configuration.privateKey)
+    private val jwk = JWK.parse(configuration.jwk)
+    private val signer = RSASSASigner(jwk.toRSAKey())
+
+    private val dpopProofBuilder = ProofBuilder(configuration)
 
     private val mapper = ObjectMapper()
         .findAndRegisterModules()
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
 
+    // TODO: Caching av tokens
     fun getAccessToken(): TokenResponse =
         httpClient
             .execute(buildPostRequest()) {
@@ -59,24 +70,56 @@ class HelseIdClient(
             }
 
     private fun buildPostRequest() = HttpPost(configuration.environment.url).apply {
-        entity = buildUrlEncodedFormEntity()
+        entity = buildUrlEncodedFormEntity(buildSignedJwt().serialize())
     }
 
-    private fun buildUrlEncodedFormEntity() = UrlEncodedFormEntity(
-        listOf(
-            BasicNameValuePair(FormFields.CLIENT_ID, configuration.clientId),
-            BasicNameValuePair(FormFields.CLIENT_ASSERTION, buildSignedJwt().serialize()),
-            BasicNameValuePair(FormFields.CLIENT_ASSERTION_TYPE, CLIENT_ASSERTION_TYPE_VALUE),
-            BasicNameValuePair(FormFields.GRANT_TYPE, GRANT_TYPE_VALUE),
-        ),
-        StandardCharsets.UTF_8,
-    )
+    fun getDpopAccessToken(): TokenResponse {
+        val nonce = httpClient
+            .execute(buildDpopPostRequest()) {
+                if (it.code != 400) {
+                    throw HttpException(it.code, it.readBodyAsString())
+                }
+
+                val body = it.readBodyAsString()
+                val error = mapper.readValue<InternalErrorResponse>(body)
+                if (error.code != ErrorCodes.USE_DPOP_NONCE) throw HttpException(it.code, body)
+                it.getFirstHeader(Headers.DPOP_NONCE)?.value
+            }
+
+        if (nonce == null) throw RuntimeException("Expected ${Headers.DPOP_NONCE} header to be set")
+
+        return httpClient
+            .execute(buildDpopPostRequest(nonce)) {
+                if (it.code >= 300) {
+                    throw HttpException(it.code, it.readBodyAsString())
+                }
+                mapper.readValue<InternalTokenResponse>(it.readBodyAsString())
+                    .toTokenResponse()
+            }
+    }
+
+    private fun buildDpopPostRequest(nonce: String? = null) = HttpPost(configuration.environment.url).apply {
+        val serializedJwtClaim = buildSignedJwt()
+        entity = buildUrlEncodedFormEntity(serializedJwtClaim.serialize())
+        addHeader(Headers.DPOP, dpopProofBuilder.buildProof(Endpoint(HttpMethod.POST, configuration.environment.url), nonce))
+    }
+
+    private fun buildUrlEncodedFormEntity(serializedJwtClaim: String) =
+        UrlEncodedFormEntity(
+            listOf(
+                BasicNameValuePair(FormFields.CLIENT_ID, configuration.clientId),
+                BasicNameValuePair(FormFields.CLIENT_ASSERTION, serializedJwtClaim),
+                BasicNameValuePair(FormFields.CLIENT_ASSERTION_TYPE, CLIENT_ASSERTION_TYPE_VALUE),
+                BasicNameValuePair(FormFields.GRANT_TYPE, GRANT_TYPE_VALUE),
+            ),
+            StandardCharsets.UTF_8,
+        )
 
     private fun buildSignedJwt() =
         Instant.now().let { now ->
             SignedJWT(
                 JWSHeader.Builder(JWSAlgorithm.PS512)
-                    .keyID(configuration.keyId)
+                    .keyID(jwk.keyID)
                     .type(jwsHeaderType)
                     .build(),
                 JWTClaimsSet.Builder()
@@ -116,6 +159,14 @@ private data class InternalTokenResponse(
         scope = scope,
     )
 }
+
+private data class InternalErrorResponse(
+    @JsonProperty("error")
+    val code: String?,
+
+    @JsonProperty("error_description")
+    val description: String?,
+)
 
 private fun ClassicHttpResponse.readBodyAsString() = entity.content.readAllBytes().decodeToString()
 
