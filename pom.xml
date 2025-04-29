@@ -29,7 +29,7 @@
         <jackson.version>2.19.0</jackson.version>
 
         <kotest.version>5.9.1</kotest.version>
-        <mockk.version>1.13.17</mockk.version>
+        <mockk.version>1.14.0</mockk.version>
         <wiremock-testcontainers.version>1.0-alpha-14</wiremock-testcontainers.version>
     </properties>
 
