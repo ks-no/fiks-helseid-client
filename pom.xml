@@ -26,7 +26,7 @@
         <kotlin-logging.version>3.0.5</kotlin-logging.version>
         <nimbus-jose-jwt.version>10.2</nimbus-jose-jwt.version>
         <httpclient5.version>5.4.2</httpclient5.version>
-        <jackson.version>2.18.2</jackson.version>
+        <jackson.version>2.19.0</jackson.version>
 
         <kotest.version>5.9.1</kotest.version>
         <mockk.version>1.13.17</mockk.version>
