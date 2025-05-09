@@ -6,7 +6,8 @@ class Configuration(
     val clientId: String,
     val jwk: String,
     val environment: Environment,
-    val jwtRequestExpirationTime: Duration = Duration.ofSeconds(60),
+    val accessTokenLifetime: Duration = Duration.ofSeconds(60),
+    val accessTokenRenewalThreshold: Duration = Duration.ofSeconds(10),
 )
 
 

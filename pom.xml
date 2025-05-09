@@ -27,6 +27,7 @@
         <nimbus-jose-jwt.version>10.2</nimbus-jose-jwt.version>
         <httpclient5.version>5.4.4</httpclient5.version>
         <jackson.version>2.19.0</jackson.version>
+        <guava.version>33.4.8-jre</guava.version>
 
         <kotest.version>5.9.1</kotest.version>
         <mockk.version>1.14.0</mockk.version>
@@ -63,6 +64,11 @@
             <groupId>com.fasterxml.jackson.module</groupId>
             <artifactId>jackson-module-kotlin</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
         </dependency>
 
 

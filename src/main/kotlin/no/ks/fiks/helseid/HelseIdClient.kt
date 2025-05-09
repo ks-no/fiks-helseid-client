@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.google.common.base.Suppliers
 import com.nimbusds.jose.JOSEObjectType
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.JWSHeader
@@ -25,6 +26,7 @@ import org.apache.hc.client5.http.impl.classic.HttpClients
 import org.apache.hc.core5.http.ClassicHttpResponse
 import org.apache.hc.core5.http.message.BasicNameValuePair
 import java.nio.charset.StandardCharsets
+import java.time.Duration
 import java.time.Instant
 import java.util.*
 
@@ -42,6 +44,8 @@ private object FormFields {
     const val GRANT_TYPE = "grant_type"
 }
 
+private val jwtRequestLifetime = Duration.ofSeconds(60)
+
 private val log = KotlinLogging.logger { }
 
 class HelseIdClient(
@@ -58,9 +62,20 @@ class HelseIdClient(
         .findAndRegisterModules()
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
 
-    // TODO: Caching av tokens
-    fun getAccessToken(): TokenResponse =
-        httpClient
+    private val accessTokenCache = Suppliers.memoizeWithExpiration(
+        { getNewAccessToken() },
+        configuration.accessTokenLifetime.minus(configuration.accessTokenRenewalThreshold),
+    )
+    private val dpopAccessTokenCache = Suppliers.memoizeWithExpiration(
+        { getNewDpopAccessToken() },
+        configuration.accessTokenLifetime.minus(configuration.accessTokenRenewalThreshold),
+    )
+
+    fun getAccessToken(): TokenResponse = accessTokenCache.get()
+
+    private fun getNewAccessToken(): TokenResponse {
+        log.debug { "Renewing access token" }
+        return httpClient
             .execute(buildPostRequest()) {
                 if (it.code >= 300) {
                     throw HttpException(it.code, it.readBodyAsString())
@@ -68,12 +83,16 @@ class HelseIdClient(
                 mapper.readValue<InternalTokenResponse>(it.readBodyAsString())
                     .toTokenResponse()
             }
+    }
 
     private fun buildPostRequest() = HttpPost(configuration.environment.url).apply {
         entity = buildUrlEncodedFormEntity(buildSignedJwt().serialize())
     }
 
-    fun getDpopAccessToken(): TokenResponse {
+    fun getDpopAccessToken(): TokenResponse = dpopAccessTokenCache.get()
+
+    private fun getNewDpopAccessToken(): TokenResponse {
+        log.debug { "Renewing DPoP access token" }
         val nonce = httpClient
             .execute(buildDpopPostRequest()) {
                 if (it.code != 400) {
@@ -129,7 +148,7 @@ class HelseIdClient(
                     .issueTime(now.toDate())
                     .jwtID(UUID.randomUUID().toString())
                     .notBeforeTime(now.toDate())
-                    .expirationTime(now.plus(configuration.jwtRequestExpirationTime).toDate())
+                    .expirationTime(now.plus(jwtRequestLifetime).toDate())
                     .build()
             ).apply {
                 log.debug { "Generated JWT id: ${this.jwtClaimsSet.jwtid}" }

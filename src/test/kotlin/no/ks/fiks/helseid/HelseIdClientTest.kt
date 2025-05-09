@@ -20,6 +20,7 @@ import io.kotest.matchers.shouldNot
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
 import org.apache.hc.client5.http.classic.HttpClient
 import org.apache.hc.core5.http.ClassicHttpRequest
 import org.apache.hc.core5.http.io.HttpClientResponseHandler
@@ -37,7 +38,6 @@ class HelseIdClientTest : FreeSpec({
         "Check that the access token request has the expected values" {
             val clientId = UUID.randomUUID().toString()
             val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
-            val duration = Duration.ofSeconds(25)
 
             val slot = slot<ClassicHttpRequest>()
             val httpClient = mockk<HttpClient> {
@@ -49,7 +49,6 @@ class HelseIdClientTest : FreeSpec({
                     clientId = clientId,
                     jwk = readJwkJson(),
                     environment = environment,
-                    jwtRequestExpirationTime = duration,
                 ),
                 httpClient = httpClient,
             ).getAccessToken()
@@ -82,10 +81,43 @@ class HelseIdClientTest : FreeSpec({
                         issueTime.toInstant() shouldBeBefore Instant.now()
                         jwtid shouldNot beNull()
                         notBeforeTime.toInstant() shouldBeBefore Instant.now()
-                        expirationTime.toInstant().shouldBeBetween(Instant.now().plus(duration).minusSeconds(5), Instant.now().plus(duration).plusSeconds(5))
+                        expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(55), Instant.now().plusSeconds(65))
                     }
                 }
             }
+        }
+
+        "The access token should be cached according to config" {
+            val clientId = UUID.randomUUID().toString()
+            val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
+
+            val httpClient = mockk<HttpClient> {
+                every { execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+            }
+
+            val client = HelseIdClient(
+                configuration = Configuration(
+                    clientId = clientId,
+                    jwk = readJwkJson(),
+                    environment = environment,
+                    accessTokenLifetime = Duration.ofSeconds(1),
+                    accessTokenRenewalThreshold = Duration.ofMillis(300), // Will be renewed after 700 ms
+                ),
+                httpClient = httpClient,
+            )
+
+            val start = Instant.now()
+            while (start.plusMillis(600).isAfter(Instant.now())) {
+                client.getAccessToken()
+            }
+
+            verify(exactly = 1) { httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) }
+
+            while (start.plusMillis(1000).isAfter(Instant.now())) {
+                client.getAccessToken()
+            }
+
+            verify(exactly = 2) { httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) }
         }
     }
 
@@ -93,7 +125,6 @@ class HelseIdClientTest : FreeSpec({
         "Check that the access token request and proof has the expected values" {
             val clientId = UUID.randomUUID().toString()
             val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
-            val duration = Duration.ofSeconds(25)
 
             val nonce = UUID.randomUUID().toString()
 
@@ -106,7 +137,6 @@ class HelseIdClientTest : FreeSpec({
                 clientId = clientId,
                 jwk = readJwkJson(),
                 environment = environment,
-                jwtRequestExpirationTime = duration,
             )
             HelseIdClient(
                 configuration = configuration,
@@ -163,7 +193,7 @@ class HelseIdClientTest : FreeSpec({
                         issueTime.toInstant() shouldBeBefore Instant.now()
                         jwtid shouldNot beNull()
                         notBeforeTime.toInstant() shouldBeBefore Instant.now()
-                        expirationTime.toInstant().shouldBeBetween(Instant.now().plus(duration).minusSeconds(5), Instant.now().plus(duration).plusSeconds(5))
+                        expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(55), Instant.now().plusSeconds(65))
                     }
                 }
             }
@@ -217,10 +247,43 @@ class HelseIdClientTest : FreeSpec({
                         issueTime.toInstant() shouldBeBefore Instant.now()
                         jwtid shouldNot beNull()
                         notBeforeTime.toInstant() shouldBeBefore Instant.now()
-                        expirationTime.toInstant().shouldBeBetween(Instant.now().plus(duration).minusSeconds(5), Instant.now().plus(duration).plusSeconds(5))
+                        expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(55), Instant.now().plusSeconds(65))
                     }
                 }
             }
+        }
+
+        "The access token should be cached according to config" {
+            val clientId = UUID.randomUUID().toString()
+            val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
+
+            val httpClient = mockk<HttpClient> {
+                every { execute(any(), any<HttpClientResponseHandler<Any>>()) } returns UUID.randomUUID().toString() andThen mockk<TokenResponse>() andThen UUID.randomUUID().toString() andThen mockk<TokenResponse>()
+            }
+
+            val client = HelseIdClient(
+                configuration = Configuration(
+                    clientId = clientId,
+                    jwk = readJwkJson(),
+                    environment = environment,
+                    accessTokenLifetime = Duration.ofSeconds(1),
+                    accessTokenRenewalThreshold = Duration.ofMillis(300), // Will be renewed after 700 ms
+                ),
+                httpClient = httpClient,
+            )
+
+            val start = Instant.now()
+            while (start.plusMillis(600).isAfter(Instant.now())) {
+                client.getDpopAccessToken()
+            }
+
+            verify(exactly = 2) { httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) }
+
+            while (start.plusMillis(1000).isAfter(Instant.now())) {
+                client.getDpopAccessToken()
+            }
+
+            verify(exactly = 4) { httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) }
         }
     }
 
