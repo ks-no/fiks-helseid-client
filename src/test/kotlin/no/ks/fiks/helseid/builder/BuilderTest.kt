@@ -58,7 +58,8 @@ class BuilderTest : FreeSpec({
                     it.clientId shouldBe clientId
                     it.jwk shouldBe jwk
                     it.environment shouldBe environment
-                    it.jwtRequestExpirationTime shouldBe Duration.ofSeconds(60)
+                    it.accessTokenLifetime shouldBe Duration.ofSeconds(60)
+                    it.accessTokenRenewalThreshold shouldBe Duration.ofSeconds(10)
                 }
         }
 
@@ -67,18 +68,21 @@ class BuilderTest : FreeSpec({
             val jwk = UUID.randomUUID().toString()
             val environment = Environment(UUID.randomUUID().toString(), UUID.randomUUID().toString())
             val expirationTime = Duration.ofSeconds(nextLong(1, 60))
+            val renewalThreshold = Duration.ofSeconds(nextLong(1, 60))
 
             ConfigurationBuilder()
                 .clientId(clientId)
                 .jwk(jwk)
                 .environment(environment)
-                .jwtRequestExpirationTime(expirationTime)
+                .accessTokenLifetime(expirationTime)
+                .accessTokenRenewalThreshold(renewalThreshold)
                 .build()
                 .asClue {
                     it.clientId shouldBe clientId
                     it.jwk shouldBe jwk
                     it.environment shouldBe environment
-                    it.jwtRequestExpirationTime shouldBe expirationTime
+                    it.accessTokenLifetime shouldBe expirationTime
+                    it.accessTokenRenewalThreshold shouldBe renewalThreshold
                 }
         }
     }
