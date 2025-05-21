@@ -11,7 +11,7 @@ interface OpenIdConfiguration {
 }
 
 class CachedHttpOpenIdConfiguration(
-    private val configurationUrl: String,
+    private val discoveryUrl: String,
 ) : OpenIdConfiguration {
 
     private val configuration = Suppliers.memoizeWithExpiration(
@@ -21,6 +21,6 @@ class CachedHttpOpenIdConfiguration(
 
     override fun getTokenEndpoint(): URI = configuration.get().tokenEndpointURI
 
-    private fun resolveConfiguration() = OIDCProviderMetadata.resolve(Issuer(configurationUrl))
+    private fun resolveConfiguration() = OIDCProviderMetadata.resolve(Issuer(discoveryUrl))
 
 }
