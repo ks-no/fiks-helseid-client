@@ -21,7 +21,7 @@ class HelseIdClientBuilder {
         val configuration = configuration ?: throw IllegalArgumentException("configuration is required")
         return HelseIdClient(
             configuration = configuration,
-            openIdConfiguration =  openIdConfiguration ?: CachedHttpOpenIdConfiguration(configuration.environment.url),
+            openIdConfiguration =  openIdConfiguration ?: CachedHttpOpenIdConfiguration(configuration.environment.issuer),
             httpClient = httpClient ?: HttpClients.createMinimal()
         )
     }
