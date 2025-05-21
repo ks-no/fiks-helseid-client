@@ -49,9 +49,13 @@ private val jwtRequestLifetime = Duration.ofSeconds(60)
 private val log = KotlinLogging.logger { }
 
 class HelseIdClient(
-    private val configuration: Configuration,
+    configuration: Configuration,
     private val httpClient: HttpClient = HttpClients.createMinimal(),
+    private val openIdConfiguration: OpenIdConfiguration = CachedHttpOpenIdConfiguration(configuration.environment.url),
 ) {
+
+    private val clientId = configuration.clientId
+    private val audience = configuration.environment.audience
 
     private val jwk = JWK.parse(configuration.jwk)
     private val signer = RSASSASigner(jwk.toRSAKey())
@@ -85,7 +89,7 @@ class HelseIdClient(
             }
     }
 
-    private fun buildPostRequest() = HttpPost(configuration.environment.url).apply {
+    private fun buildPostRequest() = HttpPost(openIdConfiguration.getTokenEndpoint()).apply {
         entity = buildUrlEncodedFormEntity(buildSignedJwt().serialize())
     }
 
@@ -117,16 +121,16 @@ class HelseIdClient(
             }
     }
 
-    private fun buildDpopPostRequest(nonce: String? = null) = HttpPost(configuration.environment.url).apply {
+    private fun buildDpopPostRequest(nonce: String? = null) = HttpPost(openIdConfiguration.getTokenEndpoint()).apply {
         val serializedJwtClaim = buildSignedJwt()
         entity = buildUrlEncodedFormEntity(serializedJwtClaim.serialize())
-        addHeader(Headers.DPOP, dpopProofBuilder.buildProof(Endpoint(HttpMethod.POST, configuration.environment.url), nonce))
+        addHeader(Headers.DPOP, dpopProofBuilder.buildProof(Endpoint(HttpMethod.POST, openIdConfiguration.getTokenEndpoint().toString()), nonce))
     }
 
     private fun buildUrlEncodedFormEntity(serializedJwtClaim: String) =
         UrlEncodedFormEntity(
             listOf(
-                BasicNameValuePair(FormFields.CLIENT_ID, configuration.clientId),
+                BasicNameValuePair(FormFields.CLIENT_ID, clientId),
                 BasicNameValuePair(FormFields.CLIENT_ASSERTION, serializedJwtClaim),
                 BasicNameValuePair(FormFields.CLIENT_ASSERTION_TYPE, CLIENT_ASSERTION_TYPE_VALUE),
                 BasicNameValuePair(FormFields.GRANT_TYPE, GRANT_TYPE_VALUE),
@@ -142,9 +146,9 @@ class HelseIdClient(
                     .type(jwsHeaderType)
                     .build(),
                 JWTClaimsSet.Builder()
-                    .subject(configuration.clientId)
-                    .issuer(configuration.clientId)
-                    .audience(configuration.environment.audience)
+                    .subject(clientId)
+                    .issuer(clientId)
+                    .audience(audience)
                     .issueTime(now.toDate())
                     .jwtID(UUID.randomUUID().toString())
                     .notBeforeTime(now.toDate())

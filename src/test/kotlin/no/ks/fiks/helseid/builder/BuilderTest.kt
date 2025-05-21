@@ -4,15 +4,20 @@ import com.nimbusds.jose.jwk.gen.RSAKeyGenerator
 import io.kotest.assertions.asClue
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.throwable.shouldHaveMessage
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import no.ks.fiks.helseid.Environment
+import no.ks.fiks.helseid.OpenIdConfiguration
 import no.ks.fiks.helseid.TokenResponse
 import org.apache.hc.client5.http.classic.HttpClient
+import org.apache.hc.core5.http.ClassicHttpRequest
 import org.apache.hc.core5.http.io.HttpClientResponseHandler
+import java.net.URI
 import java.time.Duration
 import java.util.*
 import kotlin.random.Random.Default.nextLong
@@ -96,9 +101,15 @@ class BuilderTest : FreeSpec({
         }
 
         "Build with configuration" {
+            val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
             val jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString()
+
+            val slot = slot<ClassicHttpRequest>()
             val httpClient = mockk<HttpClient> {
-                every { execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+                every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+            }
+            val openIdConfiguration = mockk<OpenIdConfiguration> {
+                every { getTokenEndpoint() } returns tokenEndpoint
             }
 
             HelseIdClientBuilder()
@@ -110,11 +121,16 @@ class BuilderTest : FreeSpec({
                         .build()
                 )
                 .httpClient(httpClient)
+                .openIdConfiguration(openIdConfiguration)
                 .build()
                 .getAccessToken()
 
+            slot.captured.method shouldBe "POST"
+            slot.captured.uri shouldBe tokenEndpoint
+
             verify(exactly = 1) {
                 httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>())
+                openIdConfiguration.getTokenEndpoint()
             }
         }
 

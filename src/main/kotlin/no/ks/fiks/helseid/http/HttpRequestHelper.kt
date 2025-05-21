@@ -7,8 +7,8 @@ import no.ks.fiks.helseid.dpop.ProofBuilder
 
 class HttpRequestHelper(configuration: Configuration) {
 
-    private val helseIdClient = HelseIdClient(configuration)
-    private val proofBuilder = ProofBuilder(configuration)
+    private val helseIdClient = HelseIdClient(configuration = configuration)
+    private val proofBuilder = ProofBuilder(configuration = configuration)
 
     fun addAuthorizationHeader(
         setHeaderFunction: (headerName: String, headerValue: String) -> Any,

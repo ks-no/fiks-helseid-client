@@ -7,12 +7,12 @@ class Environment(
 ) {
     companion object {
         val TEST = Environment(
-            url = "https://helseid-sts.test.nhn.no/connect/token",
+            url = "https://helseid-sts.test.nhn.no",
             audience = "https://helseid-sts.test.nhn.no",
         )
 
         val PROD = Environment(
-            url = "https://helseid-sts.nhn.no/connect/token",
+            url = "https://helseid-sts.nhn.no",
             audience = "https://helseid-sts.nhn.no",
         )
     }
