@@ -25,12 +25,14 @@
         <kotlin.version>2.1.20</kotlin.version>
         <kotlin-logging.version>3.0.5</kotlin-logging.version>
         <nimbus-jose-jwt.version>10.3</nimbus-jose-jwt.version>
+        <oauth2-oidc-sdk.version>11.23.1</oauth2-oidc-sdk.version>
         <httpclient5.version>5.4.4</httpclient5.version>
         <jackson.version>2.19.0</jackson.version>
         <guava.version>33.4.8-jre</guava.version>
 
         <kotest.version>5.9.1</kotest.version>
         <mockk.version>1.14.2</mockk.version>
+        <wiremock.version>3.13.0</wiremock.version>
         <wiremock-testcontainers.version>1.0-alpha-15</wiremock-testcontainers.version>
     </properties>
 
@@ -49,6 +51,11 @@
             <groupId>com.nimbusds</groupId>
             <artifactId>nimbus-jose-jwt</artifactId>
             <version>${nimbus-jose-jwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>oauth2-oidc-sdk</artifactId>
+            <version>${oauth2-oidc-sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
@@ -82,6 +89,12 @@
             <groupId>io.mockk</groupId>
             <artifactId>mockk-jvm</artifactId>
             <version>${mockk.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock</artifactId>
+            <version>${wiremock.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

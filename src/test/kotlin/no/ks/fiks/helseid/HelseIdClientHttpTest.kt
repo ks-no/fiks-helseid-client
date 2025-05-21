@@ -1,5 +1,8 @@
 package no.ks.fiks.helseid
 
+import com.github.tomakehurst.wiremock.client.WireMock
+import com.github.tomakehurst.wiremock.client.WireMock.aResponse
+import com.github.tomakehurst.wiremock.client.WireMock.get
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator
 import io.kotest.assertions.asClue
 import io.kotest.assertions.throwables.shouldThrow
@@ -33,7 +36,28 @@ class HelseIdClientHttpTest : FreeSpec() {
         .withMappingFromJSON(createDpopWithoutNonceMappingJson(dpopWithoutNonceClient))
         .also {
             it.start()
+            it.setupOpenIdConfigurationMapping() // Needs the container to be started to get the dynamic port
         }
+
+    private fun WireMockContainer.setupOpenIdConfigurationMapping() {
+        WireMock.configureFor(port)
+        WireMock.stubFor(
+            get("/.well-known/openid-configuration")
+                .willReturn(
+                    aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {
+                                    "issuer": "$baseUrl",
+                                    "jwks_uri":"$baseUrl/jwks",
+                                    "token_endpoint": "$baseUrl/token",
+                                    "subject_types_supported": [ "public" ]
+                                }
+                            """.trimIndent())
+                )
+        )
+    }
 
     init {
         "Bearer token" - {
@@ -42,7 +66,7 @@ class HelseIdClientHttpTest : FreeSpec() {
                     configuration = Configuration(
                         clientId = successClient,
                         jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString(),
-                        environment = Environment("${wireMock.baseUrl}/token", UUID.randomUUID().toString()),
+                        environment = Environment(wireMock.baseUrl, UUID.randomUUID().toString()),
                     ),
                 ).getAccessToken().asClue {
                     it.accessToken shouldNot beNull()
@@ -58,7 +82,7 @@ class HelseIdClientHttpTest : FreeSpec() {
                         configuration = Configuration(
                             clientId = badRequestClient,
                             jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString(),
-                            environment = Environment("${wireMock.baseUrl}/token", UUID.randomUUID().toString()),
+                            environment = Environment(wireMock.baseUrl, UUID.randomUUID().toString()),
                         ),
                     ).getAccessToken()
                 }.asClue {
@@ -73,7 +97,7 @@ class HelseIdClientHttpTest : FreeSpec() {
                         configuration = Configuration(
                             clientId = internalServerErrorClient,
                             jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString(),
-                            environment = Environment("${wireMock.baseUrl}/token", UUID.randomUUID().toString()),
+                            environment = Environment(wireMock.baseUrl, UUID.randomUUID().toString()),
                         ),
                     ).getAccessToken()
                 }.asClue {
@@ -89,7 +113,7 @@ class HelseIdClientHttpTest : FreeSpec() {
                     configuration = Configuration(
                         clientId = dpopClient,
                         jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString(),
-                        environment = Environment("${wireMock.baseUrl}/token", UUID.randomUUID().toString()),
+                        environment = Environment(wireMock.baseUrl, UUID.randomUUID().toString()),
                     ),
                 ).getDpopAccessToken().asClue {
                     it.accessToken shouldNot beNull()
@@ -105,7 +129,7 @@ class HelseIdClientHttpTest : FreeSpec() {
                         configuration = Configuration(
                             clientId = internalServerErrorClient,
                             jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString(),
-                            environment = Environment("${wireMock.baseUrl}/token", UUID.randomUUID().toString()),
+                            environment = Environment(wireMock.baseUrl, UUID.randomUUID().toString()),
                         ),
                     ).getDpopAccessToken()
                 }.asClue {
@@ -120,7 +144,7 @@ class HelseIdClientHttpTest : FreeSpec() {
                         configuration = Configuration(
                             clientId = badRequestClient,
                             jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString(),
-                            environment = Environment("${wireMock.baseUrl}/token", UUID.randomUUID().toString()),
+                            environment = Environment(wireMock.baseUrl, UUID.randomUUID().toString()),
                         ),
                     ).getDpopAccessToken()
                 }.asClue {
@@ -135,7 +159,7 @@ class HelseIdClientHttpTest : FreeSpec() {
                         configuration = Configuration(
                             clientId = dpopErrorClient,
                             jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString(),
-                            environment = Environment("${wireMock.baseUrl}/token", UUID.randomUUID().toString()),
+                            environment = Environment(wireMock.baseUrl, UUID.randomUUID().toString()),
                         ),
                     ).getDpopAccessToken()
                 }.asClue {
@@ -150,7 +174,7 @@ class HelseIdClientHttpTest : FreeSpec() {
                         configuration = Configuration(
                             clientId = dpopWithoutNonceClient,
                             jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString(),
-                            environment = Environment("${wireMock.baseUrl}/token", UUID.randomUUID().toString()),
+                            environment = Environment(wireMock.baseUrl, UUID.randomUUID().toString()),
                         ),
                     ).getDpopAccessToken()
                 }.asClue {

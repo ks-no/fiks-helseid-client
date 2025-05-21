@@ -37,11 +37,15 @@ class HelseIdClientTest : FreeSpec({
     "Bearer token" - {
         "Check that the access token request has the expected values" {
             val clientId = UUID.randomUUID().toString()
-            val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
+            val environment = Environment("http://localhost:8080", UUID.randomUUID().toString())
 
             val slot = slot<ClassicHttpRequest>()
             val httpClient = mockk<HttpClient> {
                 every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+            }
+            val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
+            val openIdConfiguration = mockk<OpenIdConfiguration> {
+                every { getTokenEndpoint() } returns tokenEndpoint
             }
 
             HelseIdClient(
@@ -51,10 +55,11 @@ class HelseIdClientTest : FreeSpec({
                     environment = environment,
                 ),
                 httpClient = httpClient,
+                openIdConfiguration = openIdConfiguration,
             ).getAccessToken()
 
             with(slot.captured) {
-                uri shouldBe URI.create(environment.url)
+                uri shouldBe tokenEndpoint
                 getFirstHeader("DPoP") should beNull()
 
                 entity.contentType shouldBe "application/x-www-form-urlencoded; charset=UTF-8"
@@ -94,6 +99,10 @@ class HelseIdClientTest : FreeSpec({
             val httpClient = mockk<HttpClient> {
                 every { execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
             }
+            val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
+            val openIdConfiguration = mockk<OpenIdConfiguration> {
+                every { getTokenEndpoint() } returns tokenEndpoint
+            }
 
             val client = HelseIdClient(
                 configuration = Configuration(
@@ -104,6 +113,7 @@ class HelseIdClientTest : FreeSpec({
                     accessTokenRenewalThreshold = Duration.ofMillis(300), // Will be renewed after 700 ms
                 ),
                 httpClient = httpClient,
+                openIdConfiguration = openIdConfiguration,
             )
 
             val start = Instant.now()
@@ -124,13 +134,17 @@ class HelseIdClientTest : FreeSpec({
     "DPoP token" - {
         "Check that the access token request and proof has the expected values" {
             val clientId = UUID.randomUUID().toString()
-            val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
+            val environment = Environment("http://localhost:8080", UUID.randomUUID().toString())
 
             val nonce = UUID.randomUUID().toString()
 
             val captured = mutableListOf<ClassicHttpRequest>()
             val httpClient = mockk<HttpClient> {
                 every { execute(capture(captured), any<HttpClientResponseHandler<Any>>()) } returns nonce andThen mockk<TokenResponse>()
+            }
+            val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
+            val openIdConfiguration = mockk<OpenIdConfiguration> {
+                every { getTokenEndpoint() } returns tokenEndpoint
             }
 
             val configuration = Configuration(
@@ -141,11 +155,12 @@ class HelseIdClientTest : FreeSpec({
             HelseIdClient(
                 configuration = configuration,
                 httpClient = httpClient,
+                openIdConfiguration = openIdConfiguration,
             ).getDpopAccessToken()
 
             captured shouldHaveSize 2
             with(captured.first()) {
-                uri shouldBe URI.create(environment.url)
+                uri shouldBe tokenEndpoint
 
                 val dpopHeaders = headerIterator("DPoP").asSequence().toList()
                 dpopHeaders shouldHaveSize 1
@@ -162,7 +177,7 @@ class HelseIdClientTest : FreeSpec({
                             issueTime.toInstant() shouldBeBefore Instant.now()
                             jwtid shouldNot beNull()
                             getStringClaim("htm") shouldBe "POST"
-                            getStringClaim("htu") shouldBe configuration.environment.url
+                            getStringClaim("htu") shouldBe tokenEndpoint.toString()
                             getStringClaim("nonce") should beNull()
                             getStringClaim("ath") should beNull()
                         }
@@ -199,7 +214,7 @@ class HelseIdClientTest : FreeSpec({
             }
 
             with(captured[1]) {
-                uri shouldBe URI.create(environment.url)
+                uri shouldBe tokenEndpoint
 
                 val dpopHeaders = headerIterator("DPoP").asSequence().toList()
                 dpopHeaders shouldHaveSize 1
@@ -216,7 +231,7 @@ class HelseIdClientTest : FreeSpec({
                             issueTime.toInstant() shouldBeBefore Instant.now()
                             jwtid shouldNot beNull()
                             getStringClaim("htm") shouldBe "POST"
-                            getStringClaim("htu") shouldBe configuration.environment.url
+                            getStringClaim("htu") shouldBe tokenEndpoint.toString()
                             getStringClaim("nonce") shouldBe nonce
                             getStringClaim("ath") should beNull()
                         }
@@ -260,6 +275,10 @@ class HelseIdClientTest : FreeSpec({
             val httpClient = mockk<HttpClient> {
                 every { execute(any(), any<HttpClientResponseHandler<Any>>()) } returns UUID.randomUUID().toString() andThen mockk<TokenResponse>() andThen UUID.randomUUID().toString() andThen mockk<TokenResponse>()
             }
+            val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
+            val openIdConfiguration = mockk<OpenIdConfiguration> {
+                every { getTokenEndpoint() } returns tokenEndpoint
+            }
 
             val client = HelseIdClient(
                 configuration = Configuration(
@@ -270,6 +289,7 @@ class HelseIdClientTest : FreeSpec({
                     accessTokenRenewalThreshold = Duration.ofMillis(300), // Will be renewed after 700 ms
                 ),
                 httpClient = httpClient,
+                openIdConfiguration = openIdConfiguration,
             )
 
             val start = Instant.now()
