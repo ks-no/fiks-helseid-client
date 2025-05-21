@@ -51,7 +51,7 @@ private val log = KotlinLogging.logger { }
 class HelseIdClient(
     configuration: Configuration,
     private val httpClient: HttpClient = HttpClients.createMinimal(),
-    private val openIdConfiguration: OpenIdConfiguration = CachedHttpOpenIdConfiguration(configuration.environment.issuer),
+    private val openIdConfiguration: OpenIdConfiguration = CachedHttpDiscoveryOpenIdConfiguration(configuration.environment.issuer),
 ) {
 
     private val clientId = configuration.clientId

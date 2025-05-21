@@ -10,7 +10,7 @@ interface OpenIdConfiguration {
     fun getTokenEndpoint(): URI
 }
 
-class CachedHttpOpenIdConfiguration(
+class CachedHttpDiscoveryOpenIdConfiguration(
     private val issuer: String,
 ) : OpenIdConfiguration {
 

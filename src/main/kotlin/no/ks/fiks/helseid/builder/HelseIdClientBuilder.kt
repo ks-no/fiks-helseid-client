@@ -1,6 +1,6 @@
 package no.ks.fiks.helseid.builder
 
-import no.ks.fiks.helseid.CachedHttpOpenIdConfiguration
+import no.ks.fiks.helseid.CachedHttpDiscoveryOpenIdConfiguration
 import no.ks.fiks.helseid.Configuration
 import no.ks.fiks.helseid.HelseIdClient
 import no.ks.fiks.helseid.OpenIdConfiguration
@@ -21,7 +21,7 @@ class HelseIdClientBuilder {
         val configuration = configuration ?: throw IllegalArgumentException("configuration is required")
         return HelseIdClient(
             configuration = configuration,
-            openIdConfiguration = openIdConfiguration ?: CachedHttpOpenIdConfiguration(configuration.environment.issuer),
+            openIdConfiguration = openIdConfiguration ?: CachedHttpDiscoveryOpenIdConfiguration(configuration.environment.issuer),
             httpClient = httpClient ?: HttpClients.createMinimal()
         )
     }
