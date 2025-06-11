@@ -1,6 +1,6 @@
 package no.ks.fiks.helseid
 
-import com.google.common.base.Suppliers
+import com.github.benmanes.caffeine.cache.Caffeine
 import com.nimbusds.oauth2.sdk.id.Issuer
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
 import java.net.URI
@@ -14,12 +14,11 @@ class CachedHttpDiscoveryOpenIdConfiguration(
     private val issuer: String,
 ) : OpenIdConfiguration {
 
-    private val configuration = Suppliers.memoizeWithExpiration(
-        { resolveConfiguration() },
-        Duration.ofHours(6),
-    )
+    private val configuration = Caffeine.newBuilder()
+        .refreshAfterWrite(Duration.ofHours(6))
+        .build<String, OIDCProviderMetadata> { resolveConfiguration() }
 
-    override fun getTokenEndpoint(): URI = configuration.get().tokenEndpointURI
+    override fun getTokenEndpoint(): URI = configuration.get(issuer).tokenEndpointURI
 
     private fun resolveConfiguration() = OIDCProviderMetadata.resolve(Issuer(issuer))
 

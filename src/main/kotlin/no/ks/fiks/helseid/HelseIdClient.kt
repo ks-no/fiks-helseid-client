@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.google.common.base.Suppliers
+import com.github.benmanes.caffeine.cache.Caffeine
 import com.nimbusds.jose.JOSEObjectType
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.JWSHeader
@@ -37,6 +37,8 @@ private const val GRANT_TYPE_VALUE = "client_credentials"
 private const val JWS_HEADER_TYPE_VALUE = "client-authentication+jwt"
 private val jwsHeaderType = JOSEObjectType(JWS_HEADER_TYPE_VALUE)
 
+private const val CLAIM_ASSERTION_DETAILS = "assertion_details"
+
 private object FormFields {
     const val CLIENT_ID = "client_id"
     const val CLIENT_ASSERTION = "client_assertion"
@@ -66,21 +68,21 @@ class HelseIdClient(
         .findAndRegisterModules()
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
 
-    private val accessTokenCache = Suppliers.memoizeWithExpiration(
-        { getNewAccessToken() },
-        configuration.accessTokenLifetime.minus(configuration.accessTokenRenewalThreshold),
-    )
-    private val dpopAccessTokenCache = Suppliers.memoizeWithExpiration(
-        { getNewDpopAccessToken() },
-        configuration.accessTokenLifetime.minus(configuration.accessTokenRenewalThreshold),
-    )
+    private val tokenCache = Caffeine.newBuilder()
+        .expireAfterWrite(configuration.accessTokenLifetime.minus(configuration.accessTokenRenewalThreshold))
+        .build<AccessTokenRequest, TokenResponse> { getNewAccessToken(it) }
 
-    fun getAccessToken(): TokenResponse = accessTokenCache.get()
+    fun getAccessToken(request: AccessTokenRequest = AccessTokenRequestBuilder().build()): TokenResponse = tokenCache.get(request)
 
-    private fun getNewAccessToken(): TokenResponse {
-        log.debug { "Renewing access token" }
+    private fun getNewAccessToken(request: AccessTokenRequest) = when (request.tokenType) {
+        TokenType.BEARER -> getNewBearerToken(request)
+        TokenType.DPOP -> getNewDpopAccessToken(request)
+    }
+
+    private fun getNewBearerToken(request: AccessTokenRequest): TokenResponse {
+        log.debug { "Renewing access token: $request" }
         return httpClient
-            .execute(buildPostRequest()) {
+            .execute(buildPostRequest(request)) {
                 if (it.code >= 300) {
                     throw HttpException(it.code, it.readBodyAsString())
                 }
@@ -89,16 +91,14 @@ class HelseIdClient(
             }
     }
 
-    private fun buildPostRequest() = HttpPost(openIdConfiguration.getTokenEndpoint()).apply {
-        entity = buildUrlEncodedFormEntity(buildSignedJwt().serialize())
+    private fun buildPostRequest(request: AccessTokenRequest) = HttpPost(openIdConfiguration.getTokenEndpoint()).apply {
+        entity = buildUrlEncodedFormEntity(buildSignedJwt(request).serialize())
     }
 
-    fun getDpopAccessToken(): TokenResponse = dpopAccessTokenCache.get()
-
-    private fun getNewDpopAccessToken(): TokenResponse {
+    private fun getNewDpopAccessToken(request: AccessTokenRequest): TokenResponse {
         log.debug { "Renewing DPoP access token" }
         val nonce = httpClient
-            .execute(buildDpopPostRequest()) {
+            .execute(buildDpopPostRequest(request)) {
                 if (it.code != 400) {
                     throw HttpException(it.code, it.readBodyAsString())
                 }
@@ -112,7 +112,7 @@ class HelseIdClient(
         if (nonce == null) throw RuntimeException("Expected ${Headers.DPOP_NONCE} header to be set")
 
         return httpClient
-            .execute(buildDpopPostRequest(nonce)) {
+            .execute(buildDpopPostRequest(request, nonce)) {
                 if (it.code >= 300) {
                     throw HttpException(it.code, it.readBodyAsString())
                 }
@@ -121,8 +121,8 @@ class HelseIdClient(
             }
     }
 
-    private fun buildDpopPostRequest(nonce: String? = null) = HttpPost(openIdConfiguration.getTokenEndpoint()).apply {
-        val serializedJwtClaim = buildSignedJwt()
+    private fun buildDpopPostRequest(request: AccessTokenRequest, nonce: String? = null) = HttpPost(openIdConfiguration.getTokenEndpoint()).apply {
+        val serializedJwtClaim = buildSignedJwt(request)
         entity = buildUrlEncodedFormEntity(serializedJwtClaim.serialize())
         addHeader(Headers.DPOP, dpopProofBuilder.buildProof(Endpoint(HttpMethod.POST, openIdConfiguration.getTokenEndpoint().toString()), nonce))
     }
@@ -138,7 +138,7 @@ class HelseIdClient(
             StandardCharsets.UTF_8,
         )
 
-    private fun buildSignedJwt() =
+    private fun buildSignedJwt(request: AccessTokenRequest) =
         Instant.now().let { now ->
             SignedJWT(
                 JWSHeader.Builder(JWSAlgorithm.PS512)
@@ -153,12 +153,22 @@ class HelseIdClient(
                     .jwtID(UUID.randomUUID().toString())
                     .notBeforeTime(now.toDate())
                     .expirationTime(now.plus(jwtRequestLifetime).toDate())
+                    .apply {
+                        if (request is OrganizationNumberAccessTokenRequest) {
+                            claim(CLAIM_ASSERTION_DETAILS, request.buildAssertionDetailsClaim())
+                        }
+                    }
                     .build()
             ).apply {
                 log.debug { "Generated JWT id: ${this.jwtClaimsSet.jwtid}" }
                 sign(signer)
             }
         }
+
+    private fun OrganizationNumberAccessTokenRequest.buildAssertionDetailsClaim() = when (this) {
+        is SingleTenantOrganizationNumberAccessTokenRequest -> AssertionDetailsBuilder.buildSingleTenantClaim(childOrganizationNumber)
+        is MultiTenantOrganizationNumberAccessTokenRequest -> AssertionDetailsBuilder.buildMultiTenantClaim(parentOrganizationNumber, childOrganizationNumber)
+    }
 
 }
 
@@ -194,3 +204,24 @@ private data class InternalErrorResponse(
 private fun ClassicHttpResponse.readBodyAsString() = entity.content.readAllBytes().decodeToString()
 
 private fun Instant.toDate() = Date(toEpochMilli())
+
+class HelseIdClientBuilder {
+
+    private var configuration: Configuration? = null
+    private var httpClient: HttpClient? = null
+    private var openIdConfiguration: OpenIdConfiguration? = null
+
+    fun httpClient(httpClient: HttpClient?) = this.also { this.httpClient = httpClient }
+    fun configuration(konfigurasjon: Configuration) = this.also { this.configuration = konfigurasjon }
+    fun openIdConfiguration(openIdConfiguration: OpenIdConfiguration) = this.also { this.openIdConfiguration = openIdConfiguration }
+
+    fun build(): HelseIdClient {
+        val configuration = configuration ?: throw IllegalArgumentException("configuration is required")
+        return HelseIdClient(
+            configuration = configuration,
+            openIdConfiguration = openIdConfiguration ?: CachedHttpDiscoveryOpenIdConfiguration(configuration.environment.issuer),
+            httpClient = httpClient ?: HttpClients.createMinimal()
+        )
+    }
+
+}

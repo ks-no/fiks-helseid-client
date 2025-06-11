@@ -4,6 +4,7 @@ import com.nimbusds.jose.JOSEObjectType
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.crypto.RSASSAVerifier
 import com.nimbusds.jose.jwk.JWK
+import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
 import io.kotest.assertions.asClue
 import io.kotest.core.spec.style.FreeSpec
@@ -58,36 +59,16 @@ class HelseIdClientTest : FreeSpec({
                 openIdConfiguration = openIdConfiguration,
             ).getAccessToken()
 
-            with(slot.captured) {
-                uri shouldBe tokenEndpoint
-                getFirstHeader("DPoP") should beNull()
-
-                entity.contentType shouldBe "application/x-www-form-urlencoded; charset=UTF-8"
-
-                WWWFormCodec.parse(entity.content.readAllBytes().decodeToString(), StandardCharsets.UTF_8).asClue { params ->
-                    params shouldHaveSize 4
-                    params shouldContain BasicNameValuePair("client_id", clientId)
-                    params shouldContain BasicNameValuePair("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-                    params shouldContain BasicNameValuePair("grant_type", "client_credentials")
-                    params shouldHaveSingleElement { it.name == "client_assertion" }
-
-                    val jwt = SignedJWT.parse(params.single { it.name == "client_assertion" }.value)
-                    jwt.header.algorithm shouldBe JWSAlgorithm.PS512
-                    jwt.header.keyID shouldBe "LJjagdyyRG-oj3bYLEf3kOt7im5ChDHe05DdiHUtqAA"
-                    jwt.header.type shouldBe JOSEObjectType("client-authentication+jwt")
-
-                    RSASSAVerifier(readJwk().toRSAKey()).verify(jwt.header, jwt.signingInput, jwt.signature) shouldBe true
-
-                    jwt.jwtClaimsSet.claims shouldHaveSize 7
-                    with(jwt.jwtClaimsSet) {
-                        subject shouldBe clientId
-                        issuer shouldBe clientId
-                        audience shouldBe listOf(environment.audience)
-                        issueTime.toInstant() shouldBeBefore Instant.now()
-                        jwtid shouldNot beNull()
-                        notBeforeTime.toInstant() shouldBeBefore Instant.now()
-                        expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(55), Instant.now().plusSeconds(65))
-                    }
+            slot.captured.verifyBearerRequestAndGetClaims(tokenEndpoint, clientId).asClue { claimsSet ->
+                claimsSet.claims shouldHaveSize 7
+                with(claimsSet) {
+                    subject shouldBe clientId
+                    issuer shouldBe clientId
+                    audience shouldBe listOf(environment.audience)
+                    issueTime.toInstant() shouldBeBefore Instant.now()
+                    jwtid shouldNot beNull()
+                    notBeforeTime.toInstant() shouldBeBefore Instant.now()
+                    expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(55), Instant.now().plusSeconds(65))
                 }
             }
         }
@@ -129,6 +110,112 @@ class HelseIdClientTest : FreeSpec({
 
             verify(exactly = 2) { httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) }
         }
+
+        "An extra claim should be added when providing organization number as single tenant" {
+            val clientId = UUID.randomUUID().toString()
+            val childOrganizationNumber = randomOrganizationNumber()
+            val environment = Environment("http://localhost:8080", UUID.randomUUID().toString())
+
+            val slot = slot<ClassicHttpRequest>()
+            val httpClient = mockk<HttpClient> {
+                every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+            }
+            val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
+            val openIdConfiguration = mockk<OpenIdConfiguration> {
+                every { getTokenEndpoint() } returns tokenEndpoint
+            }
+
+            HelseIdClient(
+                configuration = Configuration(
+                    clientId = clientId,
+                    jwk = readJwkJson(),
+                    environment = environment,
+                ),
+                httpClient = httpClient,
+                openIdConfiguration = openIdConfiguration,
+            ).getAccessToken(
+                AccessTokenRequestBuilder()
+                    .tenancyType(TenancyType.SINGLE)
+                    .childOrganizationNumber(childOrganizationNumber)
+                    .build()
+            )
+
+            slot.captured.verifyBearerRequestAndGetClaims(tokenEndpoint, clientId).asClue { claimsSet ->
+                claimsSet.claims shouldHaveSize 8
+                with(claimsSet) {
+                    subject shouldBe clientId
+                    issuer shouldBe clientId
+                    audience shouldBe listOf(environment.audience)
+                    issueTime.toInstant() shouldBeBefore Instant.now()
+                    jwtid shouldNot beNull()
+                    notBeforeTime.toInstant() shouldBeBefore Instant.now()
+                    expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(55), Instant.now().plusSeconds(65))
+                    getJSONObjectClaim("assertion_details")["practitioner_role"]
+                        .let { it as Map<*, *> }["organization"]
+                        .let { it as Map<*, *> }["identifier"]
+                        .let { it as Map<*, *> }
+                        .asClue {
+                            it["system"] shouldBe "urn:oid:2.16.578.1.12.4.1.4.101"
+                            it["type"] shouldBe "ENH"
+                            it["value"] shouldBe childOrganizationNumber
+                        }
+                }
+            }
+        }
+
+        "An extra claim should be added when providing organization number as multi tenant" {
+            val clientId = UUID.randomUUID().toString()
+            val parentOrganizationNumber = randomOrganizationNumber()
+            val childOrganizationNumber = randomOrganizationNumber()
+            val environment = Environment("http://localhost:8080", UUID.randomUUID().toString())
+
+            val slot = slot<ClassicHttpRequest>()
+            val httpClient = mockk<HttpClient> {
+                every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+            }
+            val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
+            val openIdConfiguration = mockk<OpenIdConfiguration> {
+                every { getTokenEndpoint() } returns tokenEndpoint
+            }
+
+            HelseIdClient(
+                configuration = Configuration(
+                    clientId = clientId,
+                    jwk = readJwkJson(),
+                    environment = environment,
+                ),
+                httpClient = httpClient,
+                openIdConfiguration = openIdConfiguration,
+            ).getAccessToken(
+                AccessTokenRequestBuilder()
+                    .tenancyType(TenancyType.MULTI)
+                    .parentOrganizationNumber(parentOrganizationNumber)
+                    .childOrganizationNumber(childOrganizationNumber)
+                    .build()
+            )
+
+            slot.captured.verifyBearerRequestAndGetClaims(tokenEndpoint, clientId).asClue { claimsSet ->
+                claimsSet.claims shouldHaveSize 8
+                with(claimsSet) {
+                    subject shouldBe clientId
+                    issuer shouldBe clientId
+                    audience shouldBe listOf(environment.audience)
+                    issueTime.toInstant() shouldBeBefore Instant.now()
+                    jwtid shouldNot beNull()
+                    notBeforeTime.toInstant() shouldBeBefore Instant.now()
+                    expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(55), Instant.now().plusSeconds(65))
+                    getJSONObjectClaim("assertion_details")["practitioner_role"]
+                        .let { it as Map<*, *> }["organization"]
+                        .let { it as Map<*, *> }["identifier"]
+                        .let { it as Map<*, *> }
+                        .asClue {
+                            it["system"] shouldBe "urn:oid:1.0.6523"
+                            it["type"] shouldBe "ENH"
+                            it["value"] shouldBe "NO:ORGNR:$parentOrganizationNumber:$childOrganizationNumber"
+                        }
+                }
+            }
+        }
     }
 
     "DPoP token" - {
@@ -156,7 +243,7 @@ class HelseIdClientTest : FreeSpec({
                 configuration = configuration,
                 httpClient = httpClient,
                 openIdConfiguration = openIdConfiguration,
-            ).getDpopAccessToken()
+            ).getAccessToken(AccessTokenRequestBuilder().tokenType(TokenType.DPOP).build())
 
             captured shouldHaveSize 2
             with(captured.first()) {
@@ -294,13 +381,13 @@ class HelseIdClientTest : FreeSpec({
 
             val start = Instant.now()
             while (start.plusMillis(600).isAfter(Instant.now())) {
-                client.getDpopAccessToken()
+                client.getAccessToken(AccessTokenRequestBuilder().tokenType(TokenType.DPOP).build())
             }
 
             verify(exactly = 2) { httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) }
 
             while (start.plusMillis(1000).isAfter(Instant.now())) {
-                client.getDpopAccessToken()
+                client.getAccessToken(AccessTokenRequestBuilder().tokenType(TokenType.DPOP).build())
             }
 
             verify(exactly = 4) { httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) }
@@ -312,3 +399,30 @@ class HelseIdClientTest : FreeSpec({
 private fun readJwk() = JWK.parse(readJwkJson())
 
 private fun readJwkJson() = HelseIdClientTest::class.java.classLoader.getResourceAsStream("jwk.json")!!.readAllBytes().decodeToString()
+
+private fun ClassicHttpRequest.verifyBearerRequestAndGetClaims(
+    expectedTokenEndpoint: URI,
+    expectedClientId: String,
+): JWTClaimsSet {
+    uri shouldBe expectedTokenEndpoint
+    getFirstHeader("DPoP") should beNull()
+
+    entity.contentType shouldBe "application/x-www-form-urlencoded; charset=UTF-8"
+
+    WWWFormCodec.parse(entity.content.readAllBytes().decodeToString(), StandardCharsets.UTF_8).asClue { params ->
+        params shouldHaveSize 4
+        params shouldContain BasicNameValuePair("client_id", expectedClientId)
+        params shouldContain BasicNameValuePair("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+        params shouldContain BasicNameValuePair("grant_type", "client_credentials")
+        params shouldHaveSingleElement { it.name == "client_assertion" }
+
+        val jwt = SignedJWT.parse(params.single { it.name == "client_assertion" }.value)
+        jwt.header.algorithm shouldBe JWSAlgorithm.PS512
+        jwt.header.keyID shouldBe "LJjagdyyRG-oj3bYLEf3kOt7im5ChDHe05DdiHUtqAA"
+        jwt.header.type shouldBe JOSEObjectType("client-authentication+jwt")
+
+        RSASSAVerifier(readJwk().toRSAKey()).verify(jwt.header, jwt.signingInput, jwt.signature) shouldBe true
+
+        return jwt.jwtClaimsSet
+    }
+}

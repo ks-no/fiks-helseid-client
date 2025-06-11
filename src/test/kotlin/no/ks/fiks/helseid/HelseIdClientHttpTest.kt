@@ -115,7 +115,7 @@ class HelseIdClientHttpTest : FreeSpec() {
                         jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString(),
                         environment = Environment(wireMock.baseUrl, UUID.randomUUID().toString()),
                     ),
-                ).getDpopAccessToken().asClue {
+                ).getAccessToken(AccessTokenRequestBuilder().tokenType(TokenType.DPOP).build()).asClue {
                     it.accessToken shouldNot beNull()
                     it.tokenType shouldBe "Bearer"
                     it.scope shouldBe "the_scope"
@@ -131,7 +131,7 @@ class HelseIdClientHttpTest : FreeSpec() {
                             jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString(),
                             environment = Environment(wireMock.baseUrl, UUID.randomUUID().toString()),
                         ),
-                    ).getDpopAccessToken()
+                    ).getAccessToken(AccessTokenRequestBuilder().tokenType(TokenType.DPOP).build())
                 }.asClue {
                     it.status shouldBe 500
                     it.body shouldBe """{"error":"Something went wrong!"}"""
@@ -146,7 +146,7 @@ class HelseIdClientHttpTest : FreeSpec() {
                             jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString(),
                             environment = Environment(wireMock.baseUrl, UUID.randomUUID().toString()),
                         ),
-                    ).getDpopAccessToken()
+                    ).getAccessToken(AccessTokenRequestBuilder().tokenType(TokenType.DPOP).build())
                 }.asClue {
                     it.status shouldBe 400
                     it.body shouldBe """{"error":"invalid_client"}"""
@@ -161,7 +161,7 @@ class HelseIdClientHttpTest : FreeSpec() {
                             jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString(),
                             environment = Environment(wireMock.baseUrl, UUID.randomUUID().toString()),
                         ),
-                    ).getDpopAccessToken()
+                    ).getAccessToken(AccessTokenRequestBuilder().tokenType(TokenType.DPOP).build())
                 }.asClue {
                     it.status shouldBe 500
                     it.body shouldBe "Something went wrong"
@@ -176,7 +176,7 @@ class HelseIdClientHttpTest : FreeSpec() {
                             jwk = RSAKeyGenerator(2048).generate().toRSAKey().toString(),
                             environment = Environment(wireMock.baseUrl, UUID.randomUUID().toString()),
                         ),
-                    ).getDpopAccessToken()
+                    ).getAccessToken(AccessTokenRequestBuilder().tokenType(TokenType.DPOP).build())
                 }.asClue {
                     it shouldHaveMessage "Expected DPoP-Nonce header to be set"
                 }

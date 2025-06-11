@@ -28,7 +28,7 @@
         <oauth2-oidc-sdk.version>11.23.1</oauth2-oidc-sdk.version>
         <httpclient5.version>5.4.4</httpclient5.version>
         <jackson.version>2.19.0</jackson.version>
-        <guava.version>33.4.8-jre</guava.version>
+        <caffeine.version>3.2.0</caffeine.version>
 
         <kotest.version>5.9.1</kotest.version>
         <mockk.version>1.14.2</mockk.version>
@@ -73,9 +73,9 @@
             <version>${jackson.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${guava.version}</version>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>${caffeine.version}</version>
         </dependency>
 
 
