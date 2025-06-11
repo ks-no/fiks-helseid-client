@@ -73,7 +73,58 @@ class HelseIdClientTest : FreeSpec({
             }
         }
 
-        "The access token should be cached according to config" {
+        "Access tokens should be cached according to config" {
+            listOf(
+                StandardAccessTokenRequest(tokenType = TokenType.BEARER),
+                SingleTenantOrganizationNumberAccessTokenRequest(
+                    childOrganizationNumber = randomOrganizationNumber(),
+                    tokenType = TokenType.BEARER,
+                ),
+                MultiTenantOrganizationNumberAccessTokenRequest(
+                    parentOrganizationNumber = randomOrganizationNumber(),
+                    childOrganizationNumber = randomOrganizationNumber(),
+                    tokenType = TokenType.BEARER,
+                ),
+            ).forEach { request ->
+                val clientId = UUID.randomUUID().toString()
+                val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
+
+                val httpClient = mockk<HttpClient> {
+                    every { execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+                }
+                val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
+                val openIdConfiguration = mockk<OpenIdConfiguration> {
+                    every { getTokenEndpoint() } returns tokenEndpoint
+                }
+
+                val client = HelseIdClient(
+                    configuration = Configuration(
+                        clientId = clientId,
+                        jwk = readJwkJson(),
+                        environment = environment,
+                        accessTokenLifetime = Duration.ofSeconds(1),
+                        accessTokenRenewalThreshold = Duration.ofMillis(300), // Will be renewed after 700 ms
+                    ),
+                    httpClient = httpClient,
+                    openIdConfiguration = openIdConfiguration,
+                )
+
+                val start = Instant.now()
+                while (start.plusMillis(600).isAfter(Instant.now())) {
+                    client.getAccessToken(request)
+                }
+
+                verify(exactly = 1) { httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) }
+
+                while (start.plusMillis(1000).isAfter(Instant.now())) {
+                    client.getAccessToken(request)
+                }
+
+                verify(exactly = 2) { httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) }
+            }
+        }
+
+        "Access tokens should be cached based on the request object" {
             val clientId = UUID.randomUUID().toString()
             val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
 
@@ -90,25 +141,49 @@ class HelseIdClientTest : FreeSpec({
                     clientId = clientId,
                     jwk = readJwkJson(),
                     environment = environment,
-                    accessTokenLifetime = Duration.ofSeconds(1),
-                    accessTokenRenewalThreshold = Duration.ofMillis(300), // Will be renewed after 700 ms
+                    accessTokenLifetime = Duration.ofSeconds(5),
+                    accessTokenRenewalThreshold = Duration.ofSeconds(1),
                 ),
                 httpClient = httpClient,
                 openIdConfiguration = openIdConfiguration,
             )
 
-            val start = Instant.now()
-            while (start.plusMillis(600).isAfter(Instant.now())) {
-                client.getAccessToken()
+            val requests = listOf(
+                StandardAccessTokenRequest(tokenType = TokenType.BEARER),
+            ) + listOf(
+                SingleTenantOrganizationNumberAccessTokenRequest(
+                    childOrganizationNumber = randomOrganizationNumber(),
+                    tokenType = TokenType.BEARER,
+                ),
+                SingleTenantOrganizationNumberAccessTokenRequest(
+                    childOrganizationNumber = randomOrganizationNumber(),
+                    tokenType = TokenType.BEARER,
+                ),
+            ) + listOf(
+                MultiTenantOrganizationNumberAccessTokenRequest(
+                    parentOrganizationNumber = randomOrganizationNumber(),
+                    childOrganizationNumber = randomOrganizationNumber(),
+                    tokenType = TokenType.BEARER,
+                ),
+                MultiTenantOrganizationNumberAccessTokenRequest(
+                    parentOrganizationNumber = randomOrganizationNumber(),
+                    childOrganizationNumber = randomOrganizationNumber(),
+                    tokenType = TokenType.BEARER,
+                ),
+                MultiTenantOrganizationNumberAccessTokenRequest(
+                    parentOrganizationNumber = randomOrganizationNumber(),
+                    childOrganizationNumber = randomOrganizationNumber(),
+                    tokenType = TokenType.BEARER,
+                ),
+            )
+
+            repeat(10) {
+                requests.shuffled().forEach { request ->
+                    client.getAccessToken(request)
+                }
             }
 
-            verify(exactly = 1) { httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) }
-
-            while (start.plusMillis(1000).isAfter(Instant.now())) {
-                client.getAccessToken()
-            }
-
-            verify(exactly = 2) { httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) }
+            verify(exactly = requests.size) { httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) }
         }
 
         "An extra claim should be added when providing organization number as single tenant" {
