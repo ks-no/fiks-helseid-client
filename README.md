@@ -26,6 +26,15 @@ Cache times are configurable through the `Configuration` object used when creati
 - [Error messages](https://utviklerportal.nhn.no/informasjonstjenester/helseid/bruksmoenstre-og-eksempelkode/bruk-av-helseid/docs/teknisk-referanse/feilmeldinger_enmd)
 - [DPoP](https://utviklerportal.nhn.no/informasjonstjenester/helseid/bruksmoenstre-og-eksempelkode/bruk-av-helseid/docs/dpop/dpop_enmd)
 
+## Environments:
+TEST
+- issuer = https://helseid-sts.test.nhn.no
+- audience = https://helseid-sts.test.nhn.no
+
+PROD
+- issuer = https://helseid-sts.nhn.no
+- audience = https://helseid-sts.nhn.no
+
 ## Notes
 - When using a DPoP access token in the `Authorization` header, it must be prefixed with `DPoP` instead of `Bearer`
 - The DPoP proof is put in the `DPoP` header without any prefix, and must contain an encoded hash of the used access token
