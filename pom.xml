@@ -26,7 +26,7 @@
         <kotlin-logging.version>3.0.5</kotlin-logging.version>
         <nimbus-jose-jwt.version>10.3</nimbus-jose-jwt.version>
         <oauth2-oidc-sdk.version>11.25</oauth2-oidc-sdk.version>
-        <httpclient5.version>5.4.4</httpclient5.version>
+        <httpclient5.version>5.5</httpclient5.version>
         <jackson.version>2.19.0</jackson.version>
         <caffeine.version>3.2.0</caffeine.version>
 
