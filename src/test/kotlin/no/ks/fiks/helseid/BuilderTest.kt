@@ -1,19 +1,15 @@
-package no.ks.fiks.helseid.builder
+package no.ks.fiks.helseid
 
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator
 import io.kotest.assertions.asClue
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
-import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.throwable.shouldHaveMessage
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import no.ks.fiks.helseid.Environment
-import no.ks.fiks.helseid.OpenIdConfiguration
-import no.ks.fiks.helseid.TokenResponse
 import org.apache.hc.client5.http.classic.HttpClient
 import org.apache.hc.core5.http.ClassicHttpRequest
 import org.apache.hc.core5.http.io.HttpClientResponseHandler

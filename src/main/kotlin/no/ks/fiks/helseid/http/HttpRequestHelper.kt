@@ -1,7 +1,9 @@
 package no.ks.fiks.helseid.http
 
+import no.ks.fiks.helseid.AccessTokenRequestBuilder
 import no.ks.fiks.helseid.Configuration
 import no.ks.fiks.helseid.HelseIdClient
+import no.ks.fiks.helseid.TokenType
 import no.ks.fiks.helseid.dpop.Endpoint
 import no.ks.fiks.helseid.dpop.ProofBuilder
 
@@ -21,7 +23,13 @@ class HttpRequestHelper(configuration: Configuration) {
         endpoint: Endpoint,
         setHeaderFunction: (headerName: String, headerValue: String) -> Any,
     ) {
-        val accessToken = helseIdClient.getDpopAccessToken().accessToken
+        val accessToken = helseIdClient
+            .getAccessToken(
+                AccessTokenRequestBuilder()
+                    .tokenType(TokenType.DPOP)
+                    .build()
+            )
+            .accessToken
         val dpopProof = proofBuilder.buildProof(endpoint, accessToken = accessToken)
         HeaderHelper.setHeaders(accessToken, dpopProof, setHeaderFunction)
     }
