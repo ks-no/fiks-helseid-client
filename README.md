@@ -1,7 +1,24 @@
 # HelseID client
 Used for getting machine-to-machine tokens from the HelseID token endpoint.
 
-Documentation:
+## Retrieving access tokens
+The `AccessTokenRequestBuilder` is the recommended way to build an `AccessTokenRequest` that can be passed to the client when getting a token.
+
+```kotlin
+client.getAccessToken(
+    AccessTokenRequestBuilder()
+        .tokenType(TokenType.BEARER)
+        .build()
+)
+```
+
+The builder can be used without setting any values explicitly. 
+In that case the built request will be a standard Bearer token request.
+
+The client has a built-in cache that caches tokens based on the request parameters. 
+Cache times are configurable through the `Configuration` object used when creating the client.
+
+## Documentation
 - [HelseID](https://selvbetjening.nhn.no/docs)
 - [Sample code](https://github.com/NorskHelsenett/HelseID.Samples)
 - [Using client assertions](https://utviklerportal.nhn.no/informasjonstjenester/helseid/bruksmoenstre-og-eksempelkode/bruk-av-helseid/docs/tekniske-mekanismer/bruk_av_client_assertion_enmd)
@@ -9,7 +26,7 @@ Documentation:
 - [Error messages](https://utviklerportal.nhn.no/informasjonstjenester/helseid/bruksmoenstre-og-eksempelkode/bruk-av-helseid/docs/teknisk-referanse/feilmeldinger_enmd)
 - [DPoP](https://utviklerportal.nhn.no/informasjonstjenester/helseid/bruksmoenstre-og-eksempelkode/bruk-av-helseid/docs/dpop/dpop_enmd)
 
-# Notes
+## Notes
 - When using a DPoP access token in the `Authorization` header, it must be prefixed with `DPoP` instead of `Bearer`
 - The DPoP proof is put in the `DPoP` header without any prefix, and must contain an encoded hash of the used access token
 - DPoP proof is valid for 10 seconds, jti can not be reused (which means the entire proof can only be used once)
