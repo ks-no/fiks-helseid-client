@@ -166,8 +166,8 @@ class HelseIdClient(
         }
 
     private fun OrganizationNumberAccessTokenRequest.buildAssertionDetailsClaim() = when (this) {
-        is SingleTenantOrganizationNumberAccessTokenRequest -> AssertionDetailsBuilder.buildSingleTenantClaim(childOrganizationNumber)
-        is MultiTenantOrganizationNumberAccessTokenRequest -> AssertionDetailsBuilder.buildMultiTenantClaim(parentOrganizationNumber, childOrganizationNumber)
+        is SingleTenantAccessTokenRequest -> AssertionDetailsBuilder.buildSingleTenantClaim(childOrganizationNumber)
+        is MultiTenantAccessTokenRequest -> AssertionDetailsBuilder.buildMultiTenantClaim(parentOrganizationNumber, childOrganizationNumber)
     }
 
 }

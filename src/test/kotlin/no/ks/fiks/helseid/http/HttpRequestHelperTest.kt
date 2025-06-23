@@ -4,10 +4,8 @@ import com.nimbusds.jose.jwk.gen.RSAKeyGenerator
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import io.mockk.verify
 import no.ks.fiks.helseid.*
 import java.util.*
@@ -38,7 +36,7 @@ class HttpRequestHelperTest : StringSpec({
 
         HttpRequestHelper(client).addAuthorizationHeader(request) { _, _ -> }
 
-        verify(exactly = 1) { client.getAccessToken(MultiTenantOrganizationNumberAccessTokenRequest(parentOrganizationNumber, childOrganizationNumber, TokenType.BEARER)) }
+        verify(exactly = 1) { client.getAccessToken(MultiTenantAccessTokenRequest(parentOrganizationNumber, childOrganizationNumber, TokenType.BEARER)) }
     }
 
     "Should force request token type to BEARER" {
@@ -51,7 +49,7 @@ class HttpRequestHelperTest : StringSpec({
 
         HttpRequestHelper(client).addAuthorizationHeader(request) { _, _ -> }
 
-        verify(exactly = 1) { client.getAccessToken(SingleTenantOrganizationNumberAccessTokenRequest(childOrganizationNumber, TokenType.BEARER)) }
+        verify(exactly = 1) { client.getAccessToken(SingleTenantAccessTokenRequest(childOrganizationNumber, TokenType.BEARER)) }
     }
 
     "Should pass expected name and value" {

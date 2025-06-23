@@ -46,7 +46,7 @@ class DpopHttpRequestHelperTest : StringSpec({
         DpopHttpRequestHelper(client, proofBuilder).addAuthorizationHeader(endpoint, request) { _, _ -> }
 
         verifySequence {
-            client.getAccessToken(SingleTenantOrganizationNumberAccessTokenRequest(childOrganizationNumber, TokenType.DPOP))
+            client.getAccessToken(SingleTenantAccessTokenRequest(childOrganizationNumber, TokenType.DPOP))
             proofBuilder.buildProof(endpoint, null, accessToken)
         }
     }
@@ -68,7 +68,7 @@ class DpopHttpRequestHelperTest : StringSpec({
         DpopHttpRequestHelper(client, proofBuilder).addAuthorizationHeader(endpoint, request) { _, _ -> }
 
         verifySequence {
-            client.getAccessToken(MultiTenantOrganizationNumberAccessTokenRequest(parentOrganizationNumber, childOrganizationNumber, TokenType.DPOP))
+            client.getAccessToken(MultiTenantAccessTokenRequest(parentOrganizationNumber, childOrganizationNumber, TokenType.DPOP))
             proofBuilder.buildProof(endpoint, null, accessToken)
         }
     }
