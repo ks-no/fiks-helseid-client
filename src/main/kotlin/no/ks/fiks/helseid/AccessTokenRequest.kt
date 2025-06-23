@@ -61,7 +61,7 @@ class SingleTenantAccessTokenRequest(
     }
 
     override fun toString(): String {
-        return "SingleTenantOrganizationNumberAccessTokenRequest(tokenType='$tokenType', childOrganizationNumber='$childOrganizationNumber')"
+        return "SingleTenantAccessTokenRequest(tokenType='$tokenType', childOrganizationNumber='$childOrganizationNumber')"
     }
 
 }
@@ -97,7 +97,7 @@ class MultiTenantAccessTokenRequest(
     }
 
     override fun toString(): String {
-        return "MultiTenantOrganizationNumberAccessTokenRequest(tokenType='$tokenType', parentOrganizationNumber='$parentOrganizationNumber', childOrganizationNumber=$childOrganizationNumber)"
+        return "MultiTenantAccessTokenRequest(tokenType='$tokenType', parentOrganizationNumber='$parentOrganizationNumber', childOrganizationNumber=$childOrganizationNumber)"
     }
 
 
