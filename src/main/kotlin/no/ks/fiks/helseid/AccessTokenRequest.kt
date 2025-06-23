@@ -24,7 +24,12 @@ sealed class AccessTokenRequest(
 
 class StandardAccessTokenRequest(
     tokenType: TokenType = TokenType.BEARER,
-) : AccessTokenRequest(tokenType)
+) : AccessTokenRequest(tokenType) {
+
+    override fun toString(): String {
+        return "StandardAccessTokenRequest(tokenType='$tokenType')"
+    }
+}
 
 sealed class OrganizationNumberAccessTokenRequest(
     tokenType: TokenType = TokenType.BEARER,
@@ -53,6 +58,10 @@ class SingleTenantOrganizationNumberAccessTokenRequest(
         var result = super.hashCode()
         result = 31 * result + childOrganizationNumber.hashCode()
         return result
+    }
+
+    override fun toString(): String {
+        return "SingleTenantOrganizationNumberAccessTokenRequest(tokenType='$tokenType', childOrganizationNumber='$childOrganizationNumber')"
     }
 
 }
@@ -85,6 +94,10 @@ class MultiTenantOrganizationNumberAccessTokenRequest(
         result = 31 * result + parentOrganizationNumber.hashCode()
         result = 31 * result + (childOrganizationNumber?.hashCode() ?: 0)
         return result
+    }
+
+    override fun toString(): String {
+        return "MultiTenantOrganizationNumberAccessTokenRequest(tokenType='$tokenType', parentOrganizationNumber='$parentOrganizationNumber', childOrganizationNumber=$childOrganizationNumber)"
     }
 
 

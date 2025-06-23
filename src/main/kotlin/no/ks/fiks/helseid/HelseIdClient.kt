@@ -96,7 +96,7 @@ class HelseIdClient(
     }
 
     private fun getNewDpopAccessToken(request: AccessTokenRequest): TokenResponse {
-        log.debug { "Renewing DPoP access token" }
+        log.debug { "Renewing DPoP access token: $request" }
         val nonce = httpClient
             .execute(buildDpopPostRequest(request)) {
                 if (it.code != 400) {

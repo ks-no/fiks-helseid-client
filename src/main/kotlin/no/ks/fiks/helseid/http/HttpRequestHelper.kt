@@ -1,13 +1,17 @@
 package no.ks.fiks.helseid.http
 
-import no.ks.fiks.helseid.*
-import no.ks.fiks.helseid.dpop.Endpoint
-import no.ks.fiks.helseid.dpop.ProofBuilder
+import no.ks.fiks.helseid.AccessTokenRequestBuilder
+import no.ks.fiks.helseid.Configuration
+import no.ks.fiks.helseid.HelseIdClient
+import no.ks.fiks.helseid.TokenType
 
-class HttpRequestHelper(configuration: Configuration) {
+class HttpRequestHelper(
+    private val helseIdClient: HelseIdClient,
+) {
 
-    private val helseIdClient = HelseIdClient(configuration = configuration)
-    private val proofBuilder = ProofBuilder(configuration = configuration)
+    constructor(configuration: Configuration) : this(
+        HelseIdClient(configuration = configuration),
+    )
 
     fun addAuthorizationHeader(
         accessTokenRequestBuilder: AccessTokenRequestBuilder = AccessTokenRequestBuilder(),
@@ -15,22 +19,6 @@ class HttpRequestHelper(configuration: Configuration) {
     ) {
         val accessToken = helseIdClient.getAccessToken(accessTokenRequestBuilder.tokenType(TokenType.BEARER).build()).accessToken
         HeaderHelper.setHeaders(accessToken, setHeaderFunction)
-    }
-
-    fun addDpopAuthorizationHeader(
-        endpoint: Endpoint,
-        accessTokenRequestBuilder: AccessTokenRequestBuilder = AccessTokenRequestBuilder(),
-        setHeaderFunction: (headerName: String, headerValue: String) -> Any,
-    ) {
-        val accessToken = helseIdClient
-            .getAccessToken(
-                accessTokenRequestBuilder
-                    .tokenType(TokenType.DPOP)
-                    .build()
-            )
-            .accessToken
-        val dpopProof = proofBuilder.buildProof(endpoint, accessToken = accessToken)
-        HeaderHelper.setHeaders(accessToken, dpopProof, setHeaderFunction)
     }
 
 }
