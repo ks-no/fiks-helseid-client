@@ -27,7 +27,7 @@
         <nimbus-jose-jwt.version>10.3</nimbus-jose-jwt.version>
         <oauth2-oidc-sdk.version>11.25</oauth2-oidc-sdk.version>
         <httpclient5.version>5.5</httpclient5.version>
-        <jackson.version>2.19.0</jackson.version>
+        <jackson.version>2.19.1</jackson.version>
         <caffeine.version>3.2.1</caffeine.version>
 
         <kotest.version>5.9.1</kotest.version>
