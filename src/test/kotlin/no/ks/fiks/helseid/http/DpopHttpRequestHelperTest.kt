@@ -13,10 +13,6 @@ import java.util.*
 
 class DpopHttpRequestHelperTest : StringSpec({
 
-    "Should be able to build client from configuration" {
-        DpopHttpRequestHelper(Configuration("", RSAKeyGenerator(2048).generate().toRSAKey().toString(), Environment("", "")))
-    }
-
     "Should call client to get token with default parameters" {
         val accessToken = UUID.randomUUID().toString()
         val client = mockk<HelseIdClient> { every { getAccessToken(any()) } returns TokenResponse(accessToken, 0, "", "") }

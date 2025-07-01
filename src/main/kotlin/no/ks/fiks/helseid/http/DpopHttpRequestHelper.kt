@@ -9,11 +9,6 @@ class DpopHttpRequestHelper(
     private val proofBuilder: ProofBuilder,
 ) {
 
-    constructor(configuration: Configuration): this(
-        HelseIdClient(configuration = configuration),
-        ProofBuilder(configuration = configuration),
-    )
-
     fun addAuthorizationHeader(
         endpoint: Endpoint,
         accessTokenRequestBuilder: AccessTokenRequestBuilder = AccessTokenRequestBuilder(),

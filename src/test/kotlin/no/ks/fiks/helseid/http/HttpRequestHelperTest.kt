@@ -12,10 +12,6 @@ import java.util.*
 
 class HttpRequestHelperTest : StringSpec({
 
-    "Should be able to build client from configuration" {
-        HttpRequestHelper(Configuration("", RSAKeyGenerator(2048).generate().toRSAKey().toString(), Environment("", "")))
-    }
-
     "Should call client to get token with default parameters" {
         val client = mockk<HelseIdClient> { every { getAccessToken(any()) } returns TokenResponse(UUID.randomUUID().toString(), 0, "", "") }
 

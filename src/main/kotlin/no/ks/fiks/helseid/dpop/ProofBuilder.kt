@@ -8,7 +8,6 @@ import com.nimbusds.jose.jwk.JWK
 import com.nimbusds.jose.util.Base64URL
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
-import no.ks.fiks.helseid.Configuration
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.Instant
@@ -23,10 +22,10 @@ private const val DPOP_JWS_HEADER_TYPE_VALUE = "dpop+jwt"
 private val dpopJwsHeaderType = JOSEObjectType(DPOP_JWS_HEADER_TYPE_VALUE)
 
 class ProofBuilder(
-    configuration: Configuration,
+    jwkJson: String,
 ) {
 
-    private val jwk = JWK.parse(configuration.jwk)
+    private val jwk = JWK.parse(jwkJson)
     private val signer = RSASSASigner(jwk.toRSAKey())
 
     private val digest = MessageDigest.getInstance("SHA-256")

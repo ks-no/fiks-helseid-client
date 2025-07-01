@@ -62,7 +62,7 @@ class HelseIdClient(
     private val jwk = JWK.parse(configuration.jwk)
     private val signer = RSASSASigner(jwk.toRSAKey())
 
-    private val dpopProofBuilder = ProofBuilder(configuration)
+    private val dpopProofBuilder = ProofBuilder(configuration.jwk)
 
     private val mapper = ObjectMapper()
         .findAndRegisterModules()
