@@ -76,11 +76,11 @@ class HelseIdClientTest : FreeSpec({
         "Access tokens should be cached according to config" {
             listOf(
                 StandardAccessTokenRequest(tokenType = TokenType.BEARER),
-                SingleTenantOrganizationNumberAccessTokenRequest(
+                SingleTenantAccessTokenRequest(
                     childOrganizationNumber = randomOrganizationNumber(),
                     tokenType = TokenType.BEARER,
                 ),
-                MultiTenantOrganizationNumberAccessTokenRequest(
+                MultiTenantAccessTokenRequest(
                     parentOrganizationNumber = randomOrganizationNumber(),
                     childOrganizationNumber = randomOrganizationNumber(),
                     tokenType = TokenType.BEARER,
@@ -151,26 +151,26 @@ class HelseIdClientTest : FreeSpec({
             val requests = listOf(
                 StandardAccessTokenRequest(tokenType = TokenType.BEARER),
             ) + listOf(
-                SingleTenantOrganizationNumberAccessTokenRequest(
+                SingleTenantAccessTokenRequest(
                     childOrganizationNumber = randomOrganizationNumber(),
                     tokenType = TokenType.BEARER,
                 ),
-                SingleTenantOrganizationNumberAccessTokenRequest(
+                SingleTenantAccessTokenRequest(
                     childOrganizationNumber = randomOrganizationNumber(),
                     tokenType = TokenType.BEARER,
                 ),
             ) + listOf(
-                MultiTenantOrganizationNumberAccessTokenRequest(
+                MultiTenantAccessTokenRequest(
                     parentOrganizationNumber = randomOrganizationNumber(),
                     childOrganizationNumber = randomOrganizationNumber(),
                     tokenType = TokenType.BEARER,
                 ),
-                MultiTenantOrganizationNumberAccessTokenRequest(
+                MultiTenantAccessTokenRequest(
                     parentOrganizationNumber = randomOrganizationNumber(),
                     childOrganizationNumber = randomOrganizationNumber(),
                     tokenType = TokenType.BEARER,
                 ),
-                MultiTenantOrganizationNumberAccessTokenRequest(
+                MultiTenantAccessTokenRequest(
                     parentOrganizationNumber = randomOrganizationNumber(),
                     childOrganizationNumber = randomOrganizationNumber(),
                     tokenType = TokenType.BEARER,

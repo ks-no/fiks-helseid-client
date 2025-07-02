@@ -62,7 +62,7 @@ class HelseIdClient(
     private val jwk = JWK.parse(configuration.jwk)
     private val signer = RSASSASigner(jwk.toRSAKey())
 
-    private val dpopProofBuilder = ProofBuilder(configuration)
+    private val dpopProofBuilder = ProofBuilder(configuration.jwk)
 
     private val mapper = ObjectMapper()
         .findAndRegisterModules()
@@ -96,7 +96,7 @@ class HelseIdClient(
     }
 
     private fun getNewDpopAccessToken(request: AccessTokenRequest): TokenResponse {
-        log.debug { "Renewing DPoP access token" }
+        log.debug { "Renewing DPoP access token: $request" }
         val nonce = httpClient
             .execute(buildDpopPostRequest(request)) {
                 if (it.code != 400) {
@@ -166,8 +166,8 @@ class HelseIdClient(
         }
 
     private fun OrganizationNumberAccessTokenRequest.buildAssertionDetailsClaim() = when (this) {
-        is SingleTenantOrganizationNumberAccessTokenRequest -> AssertionDetailsBuilder.buildSingleTenantClaim(childOrganizationNumber)
-        is MultiTenantOrganizationNumberAccessTokenRequest -> AssertionDetailsBuilder.buildMultiTenantClaim(parentOrganizationNumber, childOrganizationNumber)
+        is SingleTenantAccessTokenRequest -> AssertionDetailsBuilder.buildSingleTenantClaim(childOrganizationNumber)
+        is MultiTenantAccessTokenRequest -> AssertionDetailsBuilder.buildMultiTenantClaim(parentOrganizationNumber, childOrganizationNumber)
     }
 
 }

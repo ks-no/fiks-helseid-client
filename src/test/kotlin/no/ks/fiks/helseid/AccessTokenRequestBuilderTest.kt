@@ -8,7 +8,6 @@ import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import java.util.*
-import kotlin.random.Random.Default.nextInt
 
 class AccessTokenRequestBuilderTest : FreeSpec({
 
@@ -50,7 +49,7 @@ class AccessTokenRequestBuilderTest : FreeSpec({
                 .childOrganizationNumber(childOrganizationNumber)
                 .build()
                 .asClue {
-                    it.shouldBeInstanceOf<SingleTenantOrganizationNumberAccessTokenRequest>()
+                    it.shouldBeInstanceOf<SingleTenantAccessTokenRequest>()
                     it.tokenType shouldBe TokenType.BEARER
                     it.childOrganizationNumber shouldBe childOrganizationNumber
                 }
@@ -93,7 +92,7 @@ class AccessTokenRequestBuilderTest : FreeSpec({
                 .tenancyType(TenancyType.MULTI)
                 .build()
                 .asClue {
-                    it.shouldBeInstanceOf<MultiTenantOrganizationNumberAccessTokenRequest>()
+                    it.shouldBeInstanceOf<MultiTenantAccessTokenRequest>()
                     it.tokenType shouldBe TokenType.BEARER
                     it.parentOrganizationNumber shouldBe parentOrganizationNumber
                     it.childOrganizationNumber should beNull()
@@ -109,7 +108,7 @@ class AccessTokenRequestBuilderTest : FreeSpec({
                 .tenancyType(TenancyType.MULTI)
                 .build()
                 .asClue {
-                    it.shouldBeInstanceOf<MultiTenantOrganizationNumberAccessTokenRequest>()
+                    it.shouldBeInstanceOf<MultiTenantAccessTokenRequest>()
                     it.tokenType shouldBe TokenType.BEARER
                     it.parentOrganizationNumber shouldBe parentOrganizationNumber
                     it.childOrganizationNumber shouldBe childOrganizationNumber

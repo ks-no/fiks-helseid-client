@@ -24,13 +24,18 @@ sealed class AccessTokenRequest(
 
 class StandardAccessTokenRequest(
     tokenType: TokenType = TokenType.BEARER,
-) : AccessTokenRequest(tokenType)
+) : AccessTokenRequest(tokenType) {
+
+    override fun toString(): String {
+        return "StandardAccessTokenRequest(tokenType='$tokenType')"
+    }
+}
 
 sealed class OrganizationNumberAccessTokenRequest(
     tokenType: TokenType = TokenType.BEARER,
 ) : AccessTokenRequest(tokenType)
 
-class SingleTenantOrganizationNumberAccessTokenRequest(
+class SingleTenantAccessTokenRequest(
     val childOrganizationNumber: String,
     tokenType: TokenType = TokenType.BEARER,
 ) : OrganizationNumberAccessTokenRequest(tokenType) {
@@ -44,7 +49,7 @@ class SingleTenantOrganizationNumberAccessTokenRequest(
         if (javaClass != other?.javaClass) return false
         if (!super.equals(other)) return false
 
-        other as SingleTenantOrganizationNumberAccessTokenRequest
+        other as SingleTenantAccessTokenRequest
 
         return childOrganizationNumber == other.childOrganizationNumber
     }
@@ -55,9 +60,13 @@ class SingleTenantOrganizationNumberAccessTokenRequest(
         return result
     }
 
+    override fun toString(): String {
+        return "SingleTenantAccessTokenRequest(tokenType='$tokenType', childOrganizationNumber='$childOrganizationNumber')"
+    }
+
 }
 
-class MultiTenantOrganizationNumberAccessTokenRequest(
+class MultiTenantAccessTokenRequest(
     val parentOrganizationNumber: String,
     val childOrganizationNumber: String? = null,
     tokenType: TokenType = TokenType.BEARER,
@@ -72,7 +81,7 @@ class MultiTenantOrganizationNumberAccessTokenRequest(
         if (javaClass != other?.javaClass) return false
         if (!super.equals(other)) return false
 
-        other as MultiTenantOrganizationNumberAccessTokenRequest
+        other as MultiTenantAccessTokenRequest
 
         if (parentOrganizationNumber != other.parentOrganizationNumber) return false
         if (childOrganizationNumber != other.childOrganizationNumber) return false
@@ -85,6 +94,10 @@ class MultiTenantOrganizationNumberAccessTokenRequest(
         result = 31 * result + parentOrganizationNumber.hashCode()
         result = 31 * result + (childOrganizationNumber?.hashCode() ?: 0)
         return result
+    }
+
+    override fun toString(): String {
+        return "MultiTenantAccessTokenRequest(tokenType='$tokenType', parentOrganizationNumber='$parentOrganizationNumber', childOrganizationNumber=$childOrganizationNumber)"
     }
 
 
@@ -115,13 +128,13 @@ class AccessTokenRequestBuilder {
 
     private fun buildOrganizationNumberAccessTokenRequest() = when (tenancyType) {
         TenancyType.SINGLE, null -> {
-            SingleTenantOrganizationNumberAccessTokenRequest(
+            SingleTenantAccessTokenRequest(
                 childOrganizationNumber = childOrganizationNumber ?: throw IllegalArgumentException("Child organization is required for single tenant clients"),
                 tokenType = tokenType ?: TokenType.BEARER,
             )
         }
         TenancyType.MULTI -> {
-            MultiTenantOrganizationNumberAccessTokenRequest(
+            MultiTenantAccessTokenRequest(
                 parentOrganizationNumber = parentOrganizationNumber ?: throw IllegalArgumentException("Parent organization is required for multi tenant clients"),
                 childOrganizationNumber = childOrganizationNumber,
                 tokenType = tokenType ?: TokenType.BEARER,
