@@ -1,4 +1,9 @@
 # HelseID client
+![GitHub License](https://img.shields.io/github/license/ks-no/helseid-client)
+[![Maven Central](https://img.shields.io/maven-central/v/no.ks.fiks/helseid-client)](https://search.maven.org/artifact/no.ks.fiks/helseid-client)
+![GitHub Release Date](https://img.shields.io/github/release-date/ks-no/fiks-helseid-client.svg)
+![GitHub Last Commit](https://img.shields.io/github/last-commit/ks-no/fiks-helseid-client.svg)
+
 Used for getting machine-to-machine tokens from the HelseID token endpoint.
 
 ## Retrieving access tokens
