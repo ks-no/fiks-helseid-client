@@ -72,6 +72,7 @@ class HelseIdClient(
         .expireAfterWrite(configuration.accessTokenLifetime.minus(configuration.accessTokenRenewalThreshold))
         .build<AccessTokenRequest, TokenResponse> { getNewAccessToken(it) }
 
+    @JvmOverloads
     fun getAccessToken(request: AccessTokenRequest = AccessTokenRequestBuilder().build()): TokenResponse = tokenCache.get(request)
 
     private fun getNewAccessToken(request: AccessTokenRequest) = when (request.tokenType) {
