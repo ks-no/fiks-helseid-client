@@ -39,8 +39,3 @@ TEST
 PROD
 - issuer = https://helseid-sts.nhn.no
 - audience = https://helseid-sts.nhn.no
-
-## Notes
-- When using a DPoP access token in the `Authorization` header, it must be prefixed with `DPoP` instead of `Bearer`
-- The DPoP proof is put in the `DPoP` header without any prefix, and must contain an encoded hash of the used access token
-- DPoP proof is valid for 10 seconds, jti can not be reused (which means the entire proof can only be used once)
