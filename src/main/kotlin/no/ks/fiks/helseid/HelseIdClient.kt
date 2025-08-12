@@ -174,16 +174,16 @@ class HelseIdClient(
 }
 
 private data class InternalTokenResponse(
-    @JsonProperty("access_token")
+    @param:JsonProperty("access_token")
     val accessToken: String,
 
-    @JsonProperty("expires_in")
+    @param:JsonProperty("expires_in")
     val expiresIn: Int,
 
-    @JsonProperty("token_type")
+    @param:JsonProperty("token_type")
     val tokenType: String,
 
-    @JsonProperty("scope")
+    @param:JsonProperty("scope")
     val scope: String,
 ) {
     fun toTokenResponse() = TokenResponse(
@@ -195,10 +195,10 @@ private data class InternalTokenResponse(
 }
 
 private data class InternalErrorResponse(
-    @JsonProperty("error")
+    @param:JsonProperty("error")
     val code: String?,
 
-    @JsonProperty("error_description")
+    @param:JsonProperty("error_description")
     val description: String?,
 )
 
