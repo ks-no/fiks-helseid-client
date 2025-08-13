@@ -12,7 +12,7 @@
 
     <groupId>no.ks.fiks</groupId>
     <artifactId>helseid-client</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.1</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Client for retrieving HelseID tokens</description>
     <url>https://github.com/ks-no/fiks-helseid-client</url>
