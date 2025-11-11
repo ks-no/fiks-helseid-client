@@ -37,7 +37,7 @@
         <oauth2-oidc-sdk.version>11.30.1</oauth2-oidc-sdk.version>
         <httpclient5.version>5.5.1</httpclient5.version>
         <jackson.version>2.20.1</jackson.version>
-        <caffeine.version>3.2.2</caffeine.version>
+        <caffeine.version>3.2.3</caffeine.version>
 
         <kotest.version>5.9.1</kotest.version>
         <mockk.version>1.14.2</mockk.version>
