@@ -40,7 +40,7 @@
         <caffeine.version>3.2.3</caffeine.version>
 
         <kotest.version>5.9.1</kotest.version>
-        <mockk.version>1.14.2</mockk.version>
+        <mockk.version>1.14.6</mockk.version>
         <wiremock.version>3.13.1</wiremock.version>
         <wiremock-testcontainers.version>1.0-alpha-15</wiremock-testcontainers.version>
     </properties>
