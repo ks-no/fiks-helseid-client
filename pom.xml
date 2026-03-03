@@ -39,9 +39,9 @@
         <jackson.version>2.21.1</jackson.version>
         <caffeine.version>3.2.3</caffeine.version>
 
-        <kotest.version>5.9.1</kotest.version>
-        <mockk.version>1.14.2</mockk.version>
-        <wiremock.version>3.13.1</wiremock.version>
+        <kotest.version>6.1.4</kotest.version>
+        <mockk.version>1.14.9</mockk.version>
+        <wiremock.version>3.13.2</wiremock.version>
         <wiremock-testcontainers.version>1.0-alpha-15</wiremock-testcontainers.version>
     </properties>
 
@@ -90,7 +90,7 @@
 
         <dependency>
             <groupId>io.kotest</groupId>
-            <artifactId>kotest-runner-junit5-jvm</artifactId>
+            <artifactId>kotest-runner-junit6-jvm</artifactId>
             <version>${kotest.version}</version>
             <scope>test</scope>
         </dependency>
