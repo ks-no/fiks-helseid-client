@@ -68,7 +68,7 @@ class HelseIdClientTest : FreeSpec({
                     issueTime.toInstant() shouldBeBefore Instant.now()
                     jwtid shouldNot beNull()
                     notBeforeTime.toInstant() shouldBeBefore Instant.now()
-                    expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(55), Instant.now().plusSeconds(65))
+                    expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(3), Instant.now().plusSeconds(7))
                 }
             }
         }
@@ -224,7 +224,7 @@ class HelseIdClientTest : FreeSpec({
                     issueTime.toInstant() shouldBeBefore Instant.now()
                     jwtid shouldNot beNull()
                     notBeforeTime.toInstant() shouldBeBefore Instant.now()
-                    expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(55), Instant.now().plusSeconds(65))
+                    expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(3), Instant.now().plusSeconds(7))
                     getJSONObjectClaim("assertion_details")["practitioner_role"]
                         .let { it as Map<*, *> }["organization"]
                         .let { it as Map<*, *> }["identifier"]
@@ -278,7 +278,7 @@ class HelseIdClientTest : FreeSpec({
                     issueTime.toInstant() shouldBeBefore Instant.now()
                     jwtid shouldNot beNull()
                     notBeforeTime.toInstant() shouldBeBefore Instant.now()
-                    expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(55), Instant.now().plusSeconds(65))
+                    expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(3), Instant.now().plusSeconds(7))
                     getJSONObjectClaim("assertion_details")["practitioner_role"]
                         .let { it as Map<*, *> }["organization"]
                         .let { it as Map<*, *> }["identifier"]
@@ -370,7 +370,7 @@ class HelseIdClientTest : FreeSpec({
                         issueTime.toInstant() shouldBeBefore Instant.now()
                         jwtid shouldNot beNull()
                         notBeforeTime.toInstant() shouldBeBefore Instant.now()
-                        expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(55), Instant.now().plusSeconds(65))
+                        expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(3), Instant.now().plusSeconds(7))
                     }
                 }
             }
@@ -424,7 +424,7 @@ class HelseIdClientTest : FreeSpec({
                         issueTime.toInstant() shouldBeBefore Instant.now()
                         jwtid shouldNot beNull()
                         notBeforeTime.toInstant() shouldBeBefore Instant.now()
-                        expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(55), Instant.now().plusSeconds(65))
+                        expirationTime.toInstant().shouldBeBetween(Instant.now().plusSeconds(3), Instant.now().plusSeconds(7))
                     }
                 }
             }
