@@ -46,7 +46,7 @@ private object FormFields {
     const val GRANT_TYPE = "grant_type"
 }
 
-private val jwtRequestLifetime = Duration.ofSeconds(60)
+private val jwtRequestLifetime = Duration.ofSeconds(5)
 
 private val log = KotlinLogging.logger { }
 
