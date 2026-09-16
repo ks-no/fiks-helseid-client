@@ -59,7 +59,6 @@ class BuilderTest : FreeSpec({
                     it.clientId shouldBe clientId
                     it.jwk shouldBe jwk
                     it.environment shouldBe environment
-                    it.accessTokenLifetime shouldBe Duration.ofSeconds(60)
                     it.accessTokenRenewalThreshold shouldBe Duration.ofSeconds(10)
                 }
         }
@@ -68,21 +67,18 @@ class BuilderTest : FreeSpec({
             val clientId = UUID.randomUUID().toString()
             val jwk = UUID.randomUUID().toString()
             val environment = Environment(UUID.randomUUID().toString(), UUID.randomUUID().toString())
-            val expirationTime = Duration.ofSeconds(nextLong(1, 60))
             val renewalThreshold = Duration.ofSeconds(nextLong(1, 60))
 
             ConfigurationBuilder()
                 .clientId(clientId)
                 .jwk(jwk)
                 .environment(environment)
-                .accessTokenLifetime(expirationTime)
                 .accessTokenRenewalThreshold(renewalThreshold)
                 .build()
                 .asClue {
                     it.clientId shouldBe clientId
                     it.jwk shouldBe jwk
                     it.environment shouldBe environment
-                    it.accessTokenLifetime shouldBe expirationTime
                     it.accessTokenRenewalThreshold shouldBe renewalThreshold
                 }
         }
@@ -102,7 +98,8 @@ class BuilderTest : FreeSpec({
 
             val slot = slot<ClassicHttpRequest>()
             val httpClient = mockk<HttpClient> {
-                every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+                every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns
+                    TokenResponse(UUID.randomUUID().toString(), 60, "Bearer", "")
             }
             val openIdConfiguration = mockk<OpenIdConfiguration> {
                 every { getTokenEndpoint() } returns tokenEndpoint

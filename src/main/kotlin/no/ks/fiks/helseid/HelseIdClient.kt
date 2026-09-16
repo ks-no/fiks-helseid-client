@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.benmanes.caffeine.cache.Caffeine
+import com.github.benmanes.caffeine.cache.Expiry
 import com.nimbusds.jose.JOSEObjectType
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.JWSHeader
@@ -69,7 +70,13 @@ class HelseIdClient(
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
 
     private val tokenCache = Caffeine.newBuilder()
-        .expireAfterWrite(configuration.accessTokenLifetime.minus(configuration.accessTokenRenewalThreshold))
+        .expireAfter(
+            Expiry.creating<AccessTokenRequest, TokenResponse> { _, token ->
+                Duration.ofSeconds(token.expiresIn.toLong())
+                    .minus(configuration.accessTokenRenewalThreshold)
+                    .coerceAtLeast(Duration.ZERO)
+            }
+        )
         .build<AccessTokenRequest, TokenResponse> { getNewAccessToken(it) }
 
     @JvmOverloads

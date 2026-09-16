@@ -42,7 +42,7 @@ class HelseIdClientTest : FreeSpec({
 
             val slot = slot<ClassicHttpRequest>()
             val httpClient = mockk<HttpClient> {
-                every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+                every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns tokenResponse()
             }
             val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
             val openIdConfiguration = mockk<OpenIdConfiguration> {
@@ -73,7 +73,7 @@ class HelseIdClientTest : FreeSpec({
             }
         }
 
-        "Access tokens should be cached according to config" {
+        "Access tokens should be cached according to expires_in" {
             listOf(
                 StandardAccessTokenRequest(tokenType = TokenType.BEARER),
                 SingleTenantAccessTokenRequest(
@@ -89,8 +89,9 @@ class HelseIdClientTest : FreeSpec({
                 val clientId = UUID.randomUUID().toString()
                 val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
 
+                val tokenResponse = TokenResponse(UUID.randomUUID().toString(), 1, "Bearer", "")
                 val httpClient = mockk<HttpClient> {
-                    every { execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+                    every { execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) } returns tokenResponse
                 }
                 val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
                 val openIdConfiguration = mockk<OpenIdConfiguration> {
@@ -102,8 +103,7 @@ class HelseIdClientTest : FreeSpec({
                         clientId = clientId,
                         jwk = readJwkJson(),
                         environment = environment,
-                        accessTokenLifetime = Duration.ofSeconds(1),
-                        accessTokenRenewalThreshold = Duration.ofMillis(300), // Will be renewed after 700 ms
+                        accessTokenRenewalThreshold = Duration.ofMillis(300),
                     ),
                     httpClient = httpClient,
                     openIdConfiguration = openIdConfiguration,
@@ -124,12 +124,38 @@ class HelseIdClientTest : FreeSpec({
             }
         }
 
+        "Access tokens expiring at the renewal threshold should not be cached" {
+            val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
+            val tokenResponse = TokenResponse(UUID.randomUUID().toString(), 1, "Bearer", "")
+            val httpClient = mockk<HttpClient> {
+                every { execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) } returns tokenResponse
+            }
+            val openIdConfiguration = mockk<OpenIdConfiguration> {
+                every { getTokenEndpoint() } returns URI("http://${UUID.randomUUID()}:8080/token")
+            }
+            val client = HelseIdClient(
+                configuration = Configuration(
+                    clientId = UUID.randomUUID().toString(),
+                    jwk = readJwkJson(),
+                    environment = environment,
+                    accessTokenRenewalThreshold = Duration.ofSeconds(1),
+                ),
+                httpClient = httpClient,
+                openIdConfiguration = openIdConfiguration,
+            )
+
+            client.getAccessToken()
+            client.getAccessToken()
+
+            verify(exactly = 2) { httpClient.execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) }
+        }
+
         "Access tokens should be cached based on the request object" {
             val clientId = UUID.randomUUID().toString()
             val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
 
             val httpClient = mockk<HttpClient> {
-                every { execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+                every { execute(any(), any<HttpClientResponseHandler<TokenResponse>>()) } returns tokenResponse()
             }
             val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
             val openIdConfiguration = mockk<OpenIdConfiguration> {
@@ -141,7 +167,6 @@ class HelseIdClientTest : FreeSpec({
                     clientId = clientId,
                     jwk = readJwkJson(),
                     environment = environment,
-                    accessTokenLifetime = Duration.ofSeconds(5),
                     accessTokenRenewalThreshold = Duration.ofSeconds(1),
                 ),
                 httpClient = httpClient,
@@ -193,7 +218,7 @@ class HelseIdClientTest : FreeSpec({
 
             val slot = slot<ClassicHttpRequest>()
             val httpClient = mockk<HttpClient> {
-                every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+                every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns tokenResponse()
             }
             val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
             val openIdConfiguration = mockk<OpenIdConfiguration> {
@@ -246,7 +271,7 @@ class HelseIdClientTest : FreeSpec({
 
             val slot = slot<ClassicHttpRequest>()
             val httpClient = mockk<HttpClient> {
-                every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns mockk()
+                every { execute(capture(slot), any<HttpClientResponseHandler<TokenResponse>>()) } returns tokenResponse()
             }
             val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
             val openIdConfiguration = mockk<OpenIdConfiguration> {
@@ -302,7 +327,7 @@ class HelseIdClientTest : FreeSpec({
 
             val captured = mutableListOf<ClassicHttpRequest>()
             val httpClient = mockk<HttpClient> {
-                every { execute(capture(captured), any<HttpClientResponseHandler<Any>>()) } returns nonce andThen mockk<TokenResponse>()
+                every { execute(capture(captured), any<HttpClientResponseHandler<Any>>()) } returns nonce andThen tokenResponse()
             }
             val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
             val openIdConfiguration = mockk<OpenIdConfiguration> {
@@ -430,12 +455,13 @@ class HelseIdClientTest : FreeSpec({
             }
         }
 
-        "The access token should be cached according to config" {
+        "The access token should be cached according to expires_in" {
             val clientId = UUID.randomUUID().toString()
             val environment = Environment("http://localhost:8080/api/token", UUID.randomUUID().toString())
 
+            val tokenResponse = TokenResponse(UUID.randomUUID().toString(), 1, "DPoP", "")
             val httpClient = mockk<HttpClient> {
-                every { execute(any(), any<HttpClientResponseHandler<Any>>()) } returns UUID.randomUUID().toString() andThen mockk<TokenResponse>() andThen UUID.randomUUID().toString() andThen mockk<TokenResponse>()
+                every { execute(any(), any<HttpClientResponseHandler<Any>>()) } returns UUID.randomUUID().toString() andThen tokenResponse andThen UUID.randomUUID().toString() andThen tokenResponse
             }
             val tokenEndpoint = URI("http://${UUID.randomUUID()}:8080/token")
             val openIdConfiguration = mockk<OpenIdConfiguration> {
@@ -447,8 +473,7 @@ class HelseIdClientTest : FreeSpec({
                     clientId = clientId,
                     jwk = readJwkJson(),
                     environment = environment,
-                    accessTokenLifetime = Duration.ofSeconds(1),
-                    accessTokenRenewalThreshold = Duration.ofMillis(300), // Will be renewed after 700 ms
+                    accessTokenRenewalThreshold = Duration.ofMillis(300),
                 ),
                 httpClient = httpClient,
                 openIdConfiguration = openIdConfiguration,
@@ -474,6 +499,8 @@ class HelseIdClientTest : FreeSpec({
 private fun readJwk() = JWK.parse(readJwkJson())
 
 private fun readJwkJson() = HelseIdClientTest::class.java.classLoader.getResourceAsStream("jwk.json")!!.readAllBytes().decodeToString()
+
+private fun tokenResponse(expiresIn: Int = 60) = TokenResponse(UUID.randomUUID().toString(), expiresIn, "Bearer", "")
 
 private fun ClassicHttpRequest.verifyBearerRequestAndGetClaims(
     expectedTokenEndpoint: URI,
